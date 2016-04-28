@@ -1,0 +1,76 @@
+play.crypto.secret = "IN_PRODUCTION_CHANGE_THIS_TO_A_LONG_RANDOM_STRING"
+play.http.requestHandler = "ylabs.play.common.RequestHandler"
+play.http.errorHandler = "ylabs.play.common.ErrorHandler"
+
+jwt.issuer = "%common.jwt.issuer%"
+
+orientdb {
+  url = "%common.orientdb.url%"
+  user = "%common.orientdb.user%"
+  pass = "%common.orientdb.password%"
+}
+
+messaging {
+  domain = "%common.messaging.domain%"
+  host = "%common.messaging.host%"
+  service = "%common.messaging.service%"
+
+  admin {
+    username = "%common.messaging.admin_username%"
+    password= "%common.messaging.admin_password%" //use when not having external auth
+  }
+}
+
+aws {
+  s3 {
+    bucket = "%common.aws.s3_bucket%"
+  }
+}
+
+google {
+  apiKey = "%common.google_api_key_password%"
+}
+
+twilio {
+  accountSid = "%common.twilio.accountsid%"
+  authToken = "%common.twilio.authtoken%"
+  sender = "%common.twilio.sender%"
+}
+
+notification {
+ region = "%common.notification.region%"
+
+ platform {
+   android = "%common.notification.android%"
+   ios = "%common.notification.ios%"
+ }
+
+ reminders {
+   checkIntervalMillis = 5 minutes
+ }
+}
+
+notify {
+  title {
+    invite = "Group invitation"
+  }
+  text {
+    invite = "You've been invited to %s."
+  }
+  route {
+    invite {
+      link = "/group/%s/member"
+      name = "%s"
+    }
+  }
+}
+
+validation {
+  phone {
+    prefix {
+      icc = "64"
+      mobile = "2"
+    }
+    pattern = "^(\\+"${validation.phone.prefix.icc}")?0?("${validation.phone.prefix.mobile}"\\d{7,9}$)"
+  }
+}
