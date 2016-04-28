@@ -1,6 +1,6 @@
 # Play-App-Base
 
-Play-App-Base provides basic functionality for a Play Framework based web app.
+Play-App-Base provides basic functionality for a Play Framework based mobile/web app.
 
 Existing features can be used as is or easily build upon.
 
@@ -24,12 +24,10 @@ Existing features can be used as is or easily build upon.
 
 ## Usage
 
-Tests need a config file to be generated first via the `scripts/applicationConf.sh` script. Make sure you edit all the
-config values accordingly.
+Tests need a config file to be generated first via the `scripts/applicationConf.sh` script. Make sure you edit all the config values accordingly.
 
 Common test classes are in `scr/main/scala/test` package and can/should be used (extended) in your project.
 
 ## Play Framework
 
-This project doesn't use the Play plugin directly to not interfere with Play enabled apps that use this project as a
-dependancy. It rather depends on Play artifacts directly and uses a [custom router](test/scala/RequestHandler) for tests.
+This project doesn't use the Play plugin directly to not interfere with Play enabled apps that use this project as a dependancy. It rather depends on Play artifacts directly and uses a [custom router](src/test/scala/ylabs/play/common/RequestHandler.scala) for tests.
