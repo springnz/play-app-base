@@ -17,7 +17,7 @@ import scala.language.implicitConversions
 object LocationRepository {
   implicit def fromVertexToLocation(node: Vertex): Location = ylabs.play.common.models.Location.apply(node)
 
-  implicit def fromVertexOptionToLocation(node: Option[Vertex]): Option[Location] = node.map(fromVertexToLocation)
+  implicit def fromVertexOptionToLocation(node: Option[Vertex]): Option[Location] = node.map(fromVertexToLocation(_))
 
   implicit def fromVertexListToLocation(nodes: List[Vertex]): List[Location] = nodes map fromVertexToLocation
 }

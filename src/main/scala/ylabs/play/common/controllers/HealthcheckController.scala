@@ -40,7 +40,7 @@ class HealthcheckController @Inject() (
 
   private def testEjabberd: Future[Option[ServiceIsDown]] =
     Future {
-      smackUtils.getChatRooms
+      smackUtils.getChatRooms()
       None // no error
     }.recover { case t ⇒ log.error("ejabberd is down", t); Some("Ejabberd") }
 

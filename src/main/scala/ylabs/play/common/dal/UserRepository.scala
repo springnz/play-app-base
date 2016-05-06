@@ -22,36 +22,73 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
     graph.V.hasLabel(Label).map(apply).toList()
   }
 
-  def createFromVertex(vertex: Future[Option[Vertex]],
-                       phone: Option[Phone],
-                       email: Option[Email],
-                       name: Name,
-                       status: Status,
-                       endpoint: Option[DeviceEndpoint]): Future[User] = vertex map {
-    case Some(userVertex) ⇒
-      log.debug(s"user already exists as $userVertex, no need to create")
-      if (status == Status(Registered)) {
-        userVertex.setProperty(Properties.Name, name.value)
-        userVertex.setProperty(Properties.Status, Registered)
-        userVertex.setProperty(Properties.DeviceEndpoint, endpoint.getOrElse(DeviceEndpoint("")).value)
-      }
-      apply(userVertex)
-    case None ⇒
-      log.debug(s"creating user for ${if (phone.nonEmpty) phone.get.value else name}")
+
+
+
+  @label("user")
+  case class CreateUser(id: Id[User], status: Status, phone: Phone, name: Name, code: Option[Code], deviceId: DeviceId, deviceActivated: Boolean = false)
+
+  def createFromPhone(phone: Phone, status: Status, name: Name, code: Code, deviceId: DeviceId): Future[User] = {
+    Future {
       val id = Id[User]()
-      val user = User(id, name, status, phone, email, endpoint)
-      graph + user
-      user
+      val create = CreateUser(id, status, phone, name, Some(code), deviceId)
+      val vertex = graph + create
+      User(id, name, status, deviceActivated = false, Some(phone), None, deviceId, Some(code), None)
+    }
   }
 
-  def createFromPhone(phone: Phone, name: Name, status: Status, endpoint: Option[DeviceEndpoint] = None): Future[User] = {
-    val future = createFromVertex(getVertexFromPhone(phone), Some(phone), None, name, status, endpoint)
-    future.onComplete {
-      case Success(vertex) ⇒ log.info(s"registration successful: ${phone.value} -> $vertex")
-      case Failure(t)      ⇒ log.error(s"cannot create user for ${phone.value}", t)
+  def setPushEndpoint(id: Id[User], endpoint: DeviceEndpoint): Future[User] = {
+    getVertexOption(id) map {
+      case None => throw FailureType.RecordNotFound
+      case Some(vertex) =>
+        vertex.setProperty(Properties.DeviceEndpoint, endpoint.value)
+        apply(vertex)
     }
-    future
   }
+
+  def loginWithPhone(phone: Phone, name: Name, status: Status, deviceId: DeviceId): Future[Either[FailureType, User]] = {
+    getVertexFromPhone(phone) map {
+      case None => Left(FailureType.RecordNotFound)
+      case Some(vertex) =>
+        deviceId match {
+          case _ if vertex.value2(Properties.DeviceId) != deviceId.value => Left(FailureType.DeviceIdDoesNotMatch)
+          case _ if !vertex.value2(Properties.DeviceActivated) => Left(FailureType.DeviceNotActivated)
+          case _ =>
+            if (status == Status(Registered)) {
+              vertex.setProperty(Properties.Name, name.value)
+              vertex.setProperty(Properties.Status, Registered)
+            }
+            Right(apply(vertex))
+        }
+      }
+  }
+
+  def registerDevice(phone: Phone, code: Code, deviceId: DeviceId): Future[Either[FailureType, User]] = {
+    getVertexFromPhone(phone) map {
+      case None => Left(FailureType.RecordNotFound)
+      case Some(vertex) if vertex.value2(Properties.DeviceId) != deviceId.value => Left(FailureType.DeviceIdDoesNotMatch)
+      case Some(vertex) if vertex.valueOption(Properties.Code).isEmpty => Left(FailureType.DeviceCodeMissing)
+      case Some(vertex) if vertex.value2(Properties.Code) != code.value => Left(FailureType.DeviceCodeDoesNotMatch)
+
+      case Some(vertex) =>
+        vertex.removeProperties(Properties.Code)
+        vertex.setProperty(Properties.DeviceActivated, true)
+        Right(apply(vertex))
+    }
+  }
+
+  def setDeviceCode(phone: Phone, code: Code, deviceId: DeviceId) : Future[Either[FailureType, User]] = {
+    getVertexFromPhone(phone) map {
+      case None =>  Left(FailureType.RecordNotFound)
+      case Some(vertex) =>
+        vertex.setProperty(Properties.DeviceEndpoint, deviceId.value)
+        vertex.setProperty(Properties.Code, code.value)
+        vertex.setProperty(Properties.DeviceActivated, false)
+        Right(apply(vertex))
+    }
+  }
+
+
 
   //TODO once we have user management sorted
 //  def createFromEmail(email: Email, name: Name, status: Status, endpoint: Option[DeviceEndpoint] = None): Future[User] = {

@@ -21,6 +21,8 @@ messaging {
   }
 }
 
+auth.confirmationText = "%s, your confirmation code is: %s. Thanks!"
+
 aws {
   s3 {
     bucket = "%common.aws.s3_bucket%"

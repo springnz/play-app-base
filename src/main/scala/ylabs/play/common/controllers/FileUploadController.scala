@@ -7,6 +7,7 @@ import javax.inject.Inject
 import play.api.libs.json.Json
 import play.api.mvc.Controller
 import springnz.util.Logging
+import ylabs.play.common.dal.UserRepository
 import ylabs.play.common.models.FileUpload.{FileUploadRequest, FileUploadResponse, Url}
 import ylabs.play.common.models.Helpers.ApiFailure.Failed
 import ylabs.play.common.models.ValidationError.{Field, Invalid, Reason}
@@ -16,8 +17,11 @@ import ylabs.play.common.utils.Authenticated
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-class FileUploadController @Inject() (fileUpload: FileUploadService)(implicit ec: ExecutionContext) extends Controller with Logging {
-  def uploadFile() = Authenticated.async(parse.json[FileUploadRequest]) { request ⇒
+class FileUploadController @Inject() (fileUpload: FileUploadService,
+                                      authenticated: Authenticated,
+                                      userRepository: UserRepository
+                                       )(implicit ec: ExecutionContext) extends Controller with Logging {
+  def uploadFile() = authenticated.async(parse.json[FileUploadRequest]) { request ⇒
     val data = request.body.data.value
     val desc = request.body.description
     val errorMessage = "Invalid Base64 data"

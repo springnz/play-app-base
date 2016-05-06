@@ -1,4 +1,4 @@
-package ylabs.play.common.models
+package models
 
 object HealthCheck {
   case class HealthcheckResponse(errors: Seq[String])

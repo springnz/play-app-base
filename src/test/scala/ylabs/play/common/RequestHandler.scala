@@ -22,6 +22,8 @@ class RequestHandler @Inject() (
     (req.method, req.path) match {
       case ("GET", "/auth") ⇒ Some(userController.authenticate())
       case ("POST", "/user") ⇒ Some(userController.create())
+      case ("POST", "/user/code/request") => Some(userController.requestCode())
+      case ("POST", "/user/code/register") => Some(userController.registerDevice())
       case ("PATCH", "/user") ⇒ Some(userController.update())
       case ("GET", "/user") ⇒ Some(userController.get())
       case ("POST", "/location") ⇒ Some(locationController.update())

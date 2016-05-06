@@ -3,6 +3,7 @@ package ylabs.play.common.test
 import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import org.mockito.Matchers._
+import org.mockito.Mockito
 import org.mockito.Mockito._
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{Suite, SuiteMixin, TestData}
@@ -11,10 +12,10 @@ import play.api.inject.guice.{GuiceApplicationBuilder, GuiceableModule}
 import play.api.test.Helpers
 import play.api.{Application, Mode}
 import ylabs.play.common.models.PushNotification.{Platform, Token}
-import ylabs.play.common.models.User.DeviceEndpoint
+import ylabs.play.common.models.User.{Code, DeviceEndpoint}
 import ylabs.play.common.services.PushNotificationService
 import ylabs.play.common.test.mocks.SmackErrorMock
-import ylabs.play.common.utils.SmackUtils
+import ylabs.play.common.utils.{CodeGenerator, SmackUtils}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -29,6 +30,7 @@ trait OneAppPerTestWithOverrides extends SuiteMixin with GuiceOverrides { this: 
       .configure(additionalConfiguration)
       .overrides(ejabberdModule)
       .overrides(pushNotificationsModule)
+      .overrides(codeModule)
       .overrides(overrideModules: _*)
       .build
 
@@ -69,8 +71,16 @@ trait GuiceOverrides extends MockitoSugar {
     ret
   }
 
+  implicit val generatorMock = {
+    val ret = mock[CodeGenerator]
+
+    Mockito.doReturn("0000").when(ret).createCode()
+    ret
+  }
+
   def ejabberdModule: GuiceableModule = bind[SmackUtils].toInstance(smackUtils)
   def pushNotificationsModule: GuiceableModule = bind[PushNotificationService].toInstance(pushNotificationService)
+  def codeModule: GuiceableModule = bind[CodeGenerator].toInstance(generatorMock)
 }
 
 trait RealEjabberdTest extends GuiceOverrides {

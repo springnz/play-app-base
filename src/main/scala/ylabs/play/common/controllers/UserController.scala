@@ -4,25 +4,50 @@ import javax.inject.Inject
 
 import akka.util.Timeout
 import play.api.libs.json.Json
-import play.api.mvc.{Action, Controller}
+import play.api.mvc.{ Action, Controller }
 import springnz.util.Logging
 import ylabs.play.common.dal.UserRepository
 import ylabs.play.common.models.Helpers.ApiFailure.Failed
 import ylabs.play.common.models.Helpers.Id
-import ylabs.play.common.models.PushNotification.{Platform, Token}
+import ylabs.play.common.models.PushNotification.{ Platform, Token }
+import ylabs.play.common.models.Sms.Text
 import ylabs.play.common.models.User
 import ylabs.play.common.models.User._
-import ylabs.play.common.models.ValidationError.{Field, Invalid, Reason}
-import ylabs.play.common.services.PushNotificationService
+import ylabs.play.common.models.ValidationError.{ Field, Invalid, Reason }
+import ylabs.play.common.services.{ SmsService, PushNotificationService }
 import ylabs.play.common.utils.JWTUtil.JWT
-import ylabs.play.common.utils.{FailureType, Authenticated, PhoneValidator, JWTUtil}
+import ylabs.play.common.utils._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ Await, ExecutionContext, Future }
+
+object UserController {
+  def processError(failure: FailureType): Failed = {
+    val invalid = failure match {
+      case FailureType.DeviceCodeDoesNotMatch ⇒
+        Invalid(Field("code"), Reason("DoesNotMatch"))
+      case FailureType.DeviceIdDoesNotMatch ⇒
+        Invalid(Field("deviceId"), Reason("DoesNotMatch"))
+      case FailureType.DeviceNotActivated ⇒
+        Invalid(Field("device"), Reason("NotActivated"))
+      case FailureType.RecordNotFound ⇒
+        Invalid(Field("user"), Reason("NotFound"))
+      case FailureType.DeviceCodeMissing =>
+        Invalid(Field("code"), Reason("Missing"))
+
+    }
+    Failed(List(invalid))
+  }
+}
 
 class UserController @Inject() (
     repo: UserRepository,
     pushService: PushNotificationService,
+    smsService: SmsService,
+    configuration: Configuration,
+    authenticated: Authenticated,
+    nonActiveAuthenticated: NonActiveAuthenticated,
+    codeGenerator: CodeGenerator,
     jwtUtil: JWTUtil)(implicit ec: ExecutionContext) extends Controller with Logging {
 
   implicit val timeout: Timeout = 5.seconds
@@ -39,49 +64,90 @@ class UserController @Inject() (
     val registration = request.body
     val name = registration.name
 
-    PhoneValidator.validate(registration.phone) match {
-      case None ⇒
+    val deviceIdOption = request.headers.get("Device-Id").map(DeviceId)
+
+    (deviceIdOption, PhoneValidator.validate(registration.phone)) match {
+      case (Some(deviceId), Some(phone)) ⇒
+        repo.getFromPhone(phone) flatMap {
+          case None ⇒
+            val code = codeGenerator.createCode()
+            repo.createFromPhone(phone, User.Status(User.Registered), name, code, deviceId)
+              .map(u ⇒ Ok(Json.toJson(u.toUserInfoResponse(getToken(u)))))
+          case Some(user) ⇒
+            val devicePlatform = Platform(request.headers.get("Device-Platform").getOrElse(""))
+            val deviceToken = Token(request.headers.get("Device-Push-Identifier").getOrElse(""))
+            repo.loginWithPhone(phone, name, User.Status(User.Registered), deviceId).map {
+              case Right(u) ⇒
+                pushService.register(devicePlatform, deviceToken, u.deviceEndpoint)
+                val jwt = getToken(u)
+                Ok(Json.toJson(u.toUserInfoResponse(jwt)))
+
+              case Left(fail) ⇒
+                Unauthorized(Json.toJson(UserController.processError(fail)))
+            }
+        }
+
+      case (_, None) ⇒
         val invalid = Invalid(Field("phone"), Reason("Invalid NZ mobile number"))
         val failure = Failed(List(invalid))
         Future.successful(BadRequest(Json.toJson(failure)))
-      case Some(phone) ⇒
-        repo.getFromPhone(phone) flatMap { user ⇒
 
-          val devicePlatform = Platform(request.headers.get("Device-Platform").getOrElse(""))
-          val deviceToken = Token(request.headers.get("Device-Push-Identifier").getOrElse(""))
-          val currentEndpoint = user match {
-            case Some(u) ⇒ u.deviceEndpoint
-            case None    ⇒ None
-          }
-          val endpoint = Await.result(
-            pushService.register(devicePlatform, deviceToken, currentEndpoint), 10.seconds).orElse(None)
+      case (None, _) =>
+        val invalid = Invalid(Field("Device-Id"), Reason("Missing device id"))
+        val failure = Failed(List(invalid))
+        Future.successful(BadRequest(Json.toJson(failure)))
+    }
+  }
 
-          val res = repo.createFromPhone(phone, name, User.Status(User.Registered), endpoint).map { u ⇒
-            val jwt = getToken(u)
-            Ok(Json.toJson(UserInfoResponse(u.id, name, jwt, u.phone, u.email)))
-          }
-          res.recover {
-            case t ⇒ log.error(s"Error creating user ${phone.value}", t); throw t
-          }
-          res
+  def requestCode() = nonActiveAuthenticated.async { request ⇒
+    val deviceId = request.headers.get("Device-Id").map(DeviceId)
+    deviceId match {
+      case None ⇒
+        val invalid = Invalid(Field("Device-Id"), Reason("Missing device id"))
+        val failure = Failed(List(invalid))
+        Future { BadRequest(Json.toJson(failure)) }
+      case Some(id) ⇒
+        repo.setDeviceCode(request.user.phone.get, codeGenerator.createCode(), id).map {
+          case Left(fail) ⇒
+            BadRequest(Json.toJson(UserController.processError(fail)))
+
+          case Right(User.User(_, name, _, _, Some(phone), _, _, Some(code), _)) ⇒
+            val messageText = configuration.config
+              .getString("auth.confirmationText").format(name.value, code.value)
+            smsService.send(phone, Text(messageText))
+            Ok
+
+          case _ ⇒ InternalServerError
         }
     }
   }
 
-  def get() = Authenticated.async { request ⇒
-    val id = Id[User](request.user.getSubject)
-    repo.get(id).map {
-      case Some(user) ⇒
-        val jwt = getToken(user)
-        val userInfoResponse = user.toUserInfoResponse(jwt)
-        Ok(Json.toJson(userInfoResponse))
-      case None ⇒ NotFound
-    } recover {
-      case t ⇒ log.error(s"Error getting user ${id.value}", t); throw t
+  def registerDevice() = nonActiveAuthenticated.async(parse.json[RegisterDeviceRequest]) { request ⇒
+    val deviceId = request.headers.get("Device-Id").map(DeviceId)
+    deviceId match {
+      case None ⇒
+        val invalid = Invalid(Field("Device-Id"), Reason("Missing device id"))
+        val failure = Failed(List(invalid))
+        Future { BadRequest(Json.toJson(failure)) }
+      case Some(id) ⇒
+        repo.registerDevice(request.user.phone.get, request.body.code, id).map {
+          case Left(fail) ⇒ BadRequest(Json.toJson(UserController.processError(fail)))
+          case Right(u) ⇒
+            val devicePlatform = Platform(request.headers.get("Device-Platform").getOrElse(""))
+            val deviceToken = Token(request.headers.get("Device-Push-Identifier").getOrElse(""))
+            pushService.register(devicePlatform, deviceToken, u.deviceEndpoint)
+            Ok(Json.toJson(u.toUserInfoResponse(getToken(u))))
+        }
     }
   }
 
-  def getUserInfo(id: Id[User]) = Authenticated.async { request =>
+  def get() = authenticated.async { request ⇒
+    val user = request.user
+    val jwt = getToken(user)
+    Future { Ok(Json.toJson(user.toUserInfoResponse(jwt))) }
+  }
+
+  def getUserInfo(id: Id[User]) = authenticated.async { request ⇒
     repo.get(id).map {
       case Some(user) ⇒
         val userInfoResponse = user.toMinimalUser
@@ -92,20 +158,19 @@ class UserController @Inject() (
     }
   }
 
-  def authenticate() = Authenticated.async { request ⇒
+  def authenticate() = authenticated.async { request ⇒
     Future.successful(Ok)
   }
 
-  def update() = Authenticated.async(parse.json[UserUpdateRequest]) { request ⇒
-    val id = Id[User](request.user.getSubject)
-    repo.update(id, request.body)
+  def update() = authenticated.async(parse.json[UserUpdateRequest]) { request ⇒
+    repo.update(request.user.id, request.body)
       .map {
         case Right(user) ⇒
           val jwt = getToken(user)
           Ok(Json.toJson(UserInfoResponse(user.id, user.name, jwt, user.phone, user.email)))
-        case Left(FailureType.RecordNotFound) ⇒ NotFound
+        case Left(fail) ⇒ Unauthorized(Json.toJson(UserController.processError(fail)))
       } recover {
-        case t ⇒ log.error(s"Error updating user ${request.user.getSubject}", t); throw t
+        case t ⇒ log.error(s"Error updating user ${request.user.id}", t); throw t
       }
   }
 

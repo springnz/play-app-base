@@ -6,13 +6,18 @@ import play.api.libs.json.Json
 import ylabs.play.common.models.Helpers.{ApiRequest, ApiResponse, IDJson, Id}
 import ylabs.play.common.utils.JWTUtil.JWT
 
+import scala.util.Random
+
 object User {
-  @label("user")
+
   case class User(id: Id[User],
       name: Name,
       status: Status,
+      deviceActivated: Boolean,
       phone: Option[Phone] = None,
       email: Option[Email] = None,
+      deviceId: DeviceId,
+      code: Option[Code] = None,
       deviceEndpoint: Option[DeviceEndpoint] = None) {
     def toUserInfoResponse(jwt: JWT) = UserInfoResponse(id, name, jwt, phone, email)
     def toMinimalUser = MinimalUser(id, name, status, phone, email)
@@ -23,6 +28,8 @@ object User {
   case class Phone(value: String) extends AnyVal
   case class Email(value: String) extends AnyVal
   case class DeviceEndpoint(value: String) extends AnyVal
+  case class DeviceId(value: String) extends AnyVal
+  case class Code(value: String) extends AnyVal
 
   case class MinimalUser(
       id: Id[User],
@@ -36,6 +43,8 @@ object User {
   implicit val userPhoneFormat = IDJson(Phone)(Phone.unapply)
   implicit val userEmailFormat = IDJson(Email)(Email.unapply)
   implicit val userDeviceEndpointFormat = IDJson(DeviceEndpoint)(DeviceEndpoint.unapply)
+  implicit val deviceIdFormat = IDJson(DeviceId)(DeviceId.unapply)
+  implicit val deviceCodeFormat = IDJson(Code)(Code.unapply)
   implicit val minimalUserFormat = Json.format[MinimalUser]
 
   def phoneFromClaims(claims: JWTClaimsSet) = Phone(claims.getClaim(JwtClaims.Phone).toString)
@@ -51,6 +60,10 @@ object User {
     object Status extends Key[String]("status")
     object Phone extends Key[String]("phone")
     object Email extends Key[String]("email")
+
+    object DeviceActivated extends Key[Boolean]("deviceActivated")
+    object Code extends Key[String]("code")
+    object DeviceId extends Key[String]("deviceId")
     object DeviceEndpoint extends Key[String]("deviceEndpoint")
   }
 
@@ -66,10 +79,13 @@ object User {
     locationSharing: Option[Boolean] = None) extends ApiRequest
   case class RegistrationRequest(phone: Phone, email: Option[Email], name: Name) extends ApiRequest
 
+  case class RegisterDeviceRequest(code: Code) extends ApiRequest
+
   case class UserInfoResponse(id: Id[User], name: Name, jwt: JWT, phone: Option[Phone],
     email: Option[Email] = None) extends ApiResponse
 
   implicit val userUpdateResponseFormat = Json.format[UserUpdateRequest]
   implicit val userRegistrationRequestFormat = Json.format[RegistrationRequest]
   implicit val userInfoResponseFormat = Json.format[UserInfoResponse]
+  implicit val registerDeviceFormat = Json.format[RegisterDeviceRequest]
 }

@@ -6,7 +6,7 @@ import org.mockito.Mockito._
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{Matchers, WordSpec}
 import play.api.inject._
-import ylabs.play.common.dal.UserRepository
+import ylabs.play.common.dal.{GraphDB, UserRepository}
 import ylabs.play.common.models.PushNotification._
 import ylabs.play.common.models.User.{DeviceEndpoint, Phone, Status}
 import ylabs.play.common.models.{Notify, PushNotification, Sms, User}
@@ -69,6 +69,10 @@ class NotifyServiceTest extends WordSpec with OneAppPerTestWithOverrides with Ma
     bind[SmsService].to(mockSmsService))
 
   trait Fixture {
+
+    val graph = app.injector.instanceOf(classOf[GraphDB]).graph
+    graph.V.drop.iterate
+
     Mockito.reset(pushNotificationService)
     Mockito.reset(mockSmsService)
     when(mockSmsService.format(any[Notify.Text], any[Notify.Title])).thenReturn(Sms.Text("sms test text"))
@@ -77,6 +81,8 @@ class NotifyServiceTest extends WordSpec with OneAppPerTestWithOverrides with Ma
 
     val name = User.Name("test name")
     val phone = User.Phone("+64123456789")
+    val code = User.Code("")
+    val deviceId = User.DeviceId("")
     val notifyService = app.injector.instanceOf(classOf[NotifyService])
 
     val notify1 = Notify.Notify(
@@ -99,11 +105,13 @@ class NotifyServiceTest extends WordSpec with OneAppPerTestWithOverrides with Ma
   }
 
   trait InvitedUserFixture extends Fixture {
-    Await.result(repoUser.createFromPhone(phone, name, Status(User.Invited), Some(DeviceEndpoint(""))), 3 seconds)
+    val user = Await.result(repoUser.createFromPhone(phone, Status(User.Invited), name, code, deviceId), 3 seconds)
+    Await.result(repoUser.setPushEndpoint(user.id, DeviceEndpoint("")), 3 seconds)
   }
 
   trait RegisteredUserFixture extends Fixture {
-    Await.result(repoUser.createFromPhone(phone, name, Status(User.Registered), Some(DeviceEndpoint("endpoint123"))), 3 seconds)
+    val user = Await.result(repoUser.createFromPhone(phone, Status(User.Invited), name, code, deviceId), 3 seconds)
+    Await.result(repoUser.setPushEndpoint(user.id, DeviceEndpoint("endpoint123")), 3 seconds)
   }
 
 }

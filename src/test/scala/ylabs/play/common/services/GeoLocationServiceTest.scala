@@ -30,7 +30,6 @@ class GeoLocationServiceTest extends MyPlaySpec with OneAppPerTestWithOverrides 
     results should contain (Address("Pongaroa, Manawatu-Wanganui, New Zealand"))
     results should contain (Address("Pongakawa, Bay Of Plenty, New Zealand"))
     results should contain (Address("Ponui Island, Auckland, New Zealand"))
-    results should contain (Address("Ponatahi, Wellington, New Zealand"))
   }
 
   "ambiguous location should be resolved to New Zealand" in new Fixture {

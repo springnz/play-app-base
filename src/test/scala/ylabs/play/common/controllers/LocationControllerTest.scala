@@ -16,7 +16,7 @@ import ylabs.play.common.models.User
 import ylabs.play.common.models.User.{Phone, RegistrationRequest, UserInfoResponse}
 import ylabs.play.common.test.LocationTools._
 import ylabs.play.common.test.TestTools._
-import ylabs.play.common.test.{MyPlaySpec, OneAppPerTestWithOverrides, UserTools}
+import ylabs.play.common.test.{RequestHelpers, MyPlaySpec, OneAppPerTestWithOverrides, UserTools}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -38,6 +38,7 @@ class LocationControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides
 
     "create orient entry" in new Fixture {
       val request = FakeRequest(POST, "/location")
+        .withHeaders(RequestHelpers.DeviceIdHeader)
         .withJsonBody(Json.toJson(testLocation1))
 
       val response = route(app, request.withAuth(jwt)).get
@@ -66,7 +67,7 @@ class LocationControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides
       val lastOne = Location(None, None, Latitude(25.32f), Longitude(30.38f))
       submitLocation(jwt)(lastOne)
 
-      val request = FakeRequest(GET, "/location/last")
+      val request = FakeRequest(GET, "/location/last").withHeaders(RequestHelpers.DeviceIdHeader)
 
       val response = route(app, request.withAuth(jwt)).get
       status(response) shouldBe OK
@@ -79,7 +80,7 @@ class LocationControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides
     }
 
     "return None in a case when user has never updated his location" in new Fixture {
-      val request = FakeRequest(GET, "/location/last")
+      val request = FakeRequest(GET, "/location/last").withHeaders(RequestHelpers.DeviceIdHeader)
 
       val response = route(app, request.withAuth(jwt)).get
       status(response) shouldBe OK
@@ -105,6 +106,7 @@ class LocationControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides
 
       val request = FakeRequest(POST, s"/location/nearby")
         .withJsonBody(Json.toJson(LocationNearbyRequest(baseLocation)))
+        .withHeaders(RequestHelpers.DeviceIdHeader)
 
       val response = route(app, request.withAuth(jwt)).get
       status(response) shouldBe OK
@@ -126,7 +128,7 @@ class LocationControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides
 
   "list" should {
     "return an error code in a case of unauthorized request" in new Fixture {
-      val request = FakeRequest(GET, "/location")
+      val request = FakeRequest(GET, "/location").withHeaders(RequestHelpers.DeviceIdHeader)
       val response = route(app, request).get
       status(response) shouldBe UNAUTHORIZED
     }
@@ -134,7 +136,7 @@ class LocationControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides
     "provide correct listing after some records has been submitted" in new Fixture {
       val locations = (0 until 10) map { _ ⇒ submitRandomLocation(jwt) }
 
-      val request = FakeRequest(GET, "/location")
+      val request = FakeRequest(GET, "/location").withHeaders(RequestHelpers.DeviceIdHeader)
 
       val response = route(app, request.withAuth(jwt)).get
       status(response) shouldBe OK
@@ -171,6 +173,7 @@ class LocationControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides
         Some(List(AutoCompleteComponent(AutoCompleteComponentKeys.Country, "nz")))
       )
       val request = FakeRequest(POST, "/location/suggest")
+            .withHeaders(RequestHelpers.DeviceIdHeader)
             .withJsonBody(Json.toJson(autocomplete))
             .withAuth(jwt)
       val response = route(app, request).get
@@ -185,8 +188,6 @@ class LocationControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides
         LatLong(Latitude(-40.5414029),Longitude(176.194649))))
       receivedResult.results should contain (AddressAndCoordinates(Address("Ponui Island, Auckland, New Zealand"),
         LatLong(Latitude(-36.8621802),Longitude(175.1842227))))
-      receivedResult.results should contain (AddressAndCoordinates(Address("Ponatahi, Wellington, New Zealand"),
-        LatLong(Latitude(-41.1040341),Longitude(175.5749038))))
     }
   }
 

@@ -12,13 +12,14 @@ import play.api.inject._
 import play.api.libs.json.Json
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
+import ylabs.play.common.dal.GraphDB
 import ylabs.play.common.mocks.FileUploadServiceMock
 import ylabs.play.common.models.FileUpload.{Base64String, FileDescription, FileUploadRequest, FileUploadResponse}
 import ylabs.play.common.models.User
 import ylabs.play.common.models.User.{Phone, RegistrationRequest}
 import ylabs.play.common.services.FileUploadService
 import ylabs.play.common.test.TestTools._
-import ylabs.play.common.test.{MyPlaySpec, OneAppPerTestWithOverrides, UserTools}
+import ylabs.play.common.test.{RequestHelpers, MyPlaySpec, OneAppPerTestWithOverrides, UserTools}
 
 class FileUploadControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with ScalaFutures with BeforeAndAfter with MockitoSugar {
 
@@ -26,6 +27,7 @@ class FileUploadControllerTest extends MyPlaySpec with OneAppPerTestWithOverride
   "should upload" in new Fixture {
     val data = getData
     val request = FakeRequest(POST, "/cloud")
+      .withHeaders(RequestHelpers.DeviceIdHeader)
       .withJsonBody(Json.toJson(FileUploadRequest(Some(FileDescription("test file")), new Base64String(data))))
 
     val response = route(app, request).get
@@ -41,6 +43,7 @@ class FileUploadControllerTest extends MyPlaySpec with OneAppPerTestWithOverride
     app.injector.instanceOf[FileUploadService].asInstanceOf[FileUploadServiceMock].enable = false
     val data = getData
     val request = FakeRequest(POST, "/cloud")
+      .withHeaders(RequestHelpers.DeviceIdHeader)
       .withJsonBody(Json.toJson(FileUploadRequest(Some(FileDescription("test file")), new Base64String(data))))
       .withAuth(jwt)
 
@@ -54,6 +57,7 @@ class FileUploadControllerTest extends MyPlaySpec with OneAppPerTestWithOverride
     "missing comma" in new Fixture {
       val data = getData.replace(",", "")
       val request = FakeRequest(POST, "/cloud")
+        .withHeaders(RequestHelpers.DeviceIdHeader)
         .withJsonBody(Json.toJson(FileUploadRequest(Some(FileDescription("test file")), new Base64String(data))))
         .withAuth(jwt)
       val response = route(app, request).get
@@ -63,6 +67,7 @@ class FileUploadControllerTest extends MyPlaySpec with OneAppPerTestWithOverride
     "missing base64 signifier" in new Fixture {
       val data = getData.replace("base64", "")
       val request = FakeRequest(POST, "/cloud")
+        .withHeaders(RequestHelpers.DeviceIdHeader)
         .withJsonBody(Json.toJson(FileUploadRequest(Some(FileDescription("test file")), new Base64String(data))))
         .withAuth(jwt)
       val response = route(app, request).get
@@ -72,6 +77,7 @@ class FileUploadControllerTest extends MyPlaySpec with OneAppPerTestWithOverride
     "missing data: prefix" in new Fixture {
       val data = getData.replace("data:", "")
       val request = FakeRequest(POST, "/cloud")
+        .withHeaders(RequestHelpers.DeviceIdHeader)
         .withJsonBody(Json.toJson(FileUploadRequest(Some(FileDescription("test file")), new Base64String(data))))
         .withAuth(jwt)
       val response = route(app, request).get
@@ -81,6 +87,7 @@ class FileUploadControllerTest extends MyPlaySpec with OneAppPerTestWithOverride
     "bad encoding" in new Fixture {
       val data = getData.replace('A', '∫')
       val request = FakeRequest(POST, "/cloud")
+        .withHeaders(RequestHelpers.DeviceIdHeader)
         .withJsonBody(Json.toJson(FileUploadRequest(Some(FileDescription("test file")), new Base64String(data))))
         .withAuth(jwt)
       val response = route(app, request).get
@@ -89,6 +96,8 @@ class FileUploadControllerTest extends MyPlaySpec with OneAppPerTestWithOverride
   }
 
   trait Fixture {
+    val graph = app.injector.instanceOf(classOf[GraphDB]).graph
+    graph.V.drop().iterate
     lazy val config = ConfigFactory.load()
     lazy val bucketName = config.getString("aws.s3.bucket")
     val phoneNumber = "+64212345678"

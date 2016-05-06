@@ -117,7 +117,7 @@ class SmackUtils {
     }
   }
 
-  def getChatRooms: Set[Room] = withConnection() { connection ⇒
+  def getChatRooms(): Set[Room] = withConnection() { connection ⇒
     MultiUserChatManager.getInstanceFor(connection).getHostedRooms(chatService).map(c ⇒ Room(c.getJid)).toSet
   }
 

@@ -1,20 +1,29 @@
 package ylabs.play.common.controllers
 
 import com.nimbusds.jwt.JWTClaimsSet
-import org.scalatest.BeforeAndAfter
-import org.scalatest.concurrent.ScalaFutures
+import org.mockito.Matchers._
+import org.mockito.Mockito
+import org.mockito.Mockito._
 import org.scalatest.mock.MockitoSugar
+import org.scalatest.BeforeAndAfter
+import org.mockito.Matchers.{any, eq ⇒ is}
+import org.scalatest.concurrent.ScalaFutures
+import play.api.inject._
 import play.api.libs.json.{JsObject, JsString, Json}
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 import ylabs.play.common.dal.{GraphDB, UserRepository}
 import ylabs.play.common.models.Helpers.ApiFailure.Failed
-import ylabs.play.common.models.User
+import ylabs.play.common.models.{Sms, User}
 import ylabs.play.common.models.User._
 import ylabs.play.common.models.ValidationError.{Field, Invalid, Reason}
+import ylabs.play.common.services.SmsService
 import ylabs.play.common.test.TestTools._
-import ylabs.play.common.test.{MyPlaySpec, OneAppPerTestWithOverrides, UserTools}
+import ylabs.play.common.test.{RequestHelpers, MyPlaySpec, OneAppPerTestWithOverrides, UserTools}
 import ylabs.play.common.utils.{JWTUtil, PhoneValidator}
+import scala.concurrent.duration._
+
+import scala.concurrent.ExecutionContext
 
 class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with ScalaFutures with BeforeAndAfter with MockitoSugar {
   "registration" should {
@@ -33,8 +42,8 @@ class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with
 
     "allow concurrent registration requests" in new Fixture {
       val registration2 = registration.copy(phone = Phone("0234567890"))
-      val request = FakeRequest(POST, "/user").withJsonBody(Json.toJson(registration))
-      val request2 = FakeRequest(POST, "/user").withJsonBody(Json.toJson(registration2))
+      val request = FakeRequest(POST, "/user").withHeaders(("Device-Id", "test")).withJsonBody(Json.toJson(registration))
+      val request2 = FakeRequest(POST, "/user").withHeaders(("Device-Id", "test")).withJsonBody(Json.toJson(registration2))
 
       val response = route(app, request).get
       val response2 = route(app, request2).get
@@ -77,9 +86,11 @@ class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with
   }
 
   "allows same user to register multiple times" in new Fixture {
-    UserTools.registerUser(registration)
+    val user = UserTools.registerUser(registration, delayDeviceRegistration =  true)
     val newName = User.Name("new name")
-    val newUser = UserTools.registerUser(registration.copy(name = newName))
+    UserTools.registerDevice(user.jwt)
+
+    val newUser = UserTools.registerUser(registration.copy(name = newName), delayDeviceRegistration =  true)
 
     val repo = app.injector.instanceOf(classOf[UserRepository])
     whenReady(repo.list) { users ⇒
@@ -90,9 +101,77 @@ class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with
     }
   }
 
+  "registering device" should {
+    "requesting code should trigger sms" in new Fixture {
+      val user = UserTools.registerUser(registration, delayDeviceRegistration =  true)
+      UserTools.requestCode(user.jwt)
+      awaitCondition("should send an SMS", max = 1 second) {
+        Mockito.verify(mockSmsService).send(
+          is(user.phone.get.value).asInstanceOf[Phone],
+          is(Sms.Text("test name, your confirmation code is: 0000. Thanks!")))(any[ExecutionContext])
+      }
+    }
+
+    "be unauthorized if device not registered" in new Fixture {
+      val user = UserTools.registerUser(registration, delayDeviceRegistration =  true)
+      val request = FakeRequest(GET, "/user")
+        .withHeaders(RequestHelpers.DeviceIdHeader)
+        .withAuth(user.jwt)
+      val response = route(app, request).get
+      status(response) shouldBe UNAUTHORIZED
+    }
+
+    "be unauthorized if device id changes" in new Fixture {
+      val user = UserTools.registerUser(registration)
+      val ok = UserTools.getUser(user.jwt)
+      val request = FakeRequest(GET, "/user")
+        .withHeaders(("Device-Id", "BAD"))
+        .withAuth(user.jwt)
+      val response = route(app, request).get
+      status(response) shouldBe UNAUTHORIZED
+    }
+
+    "return error if it has already been registered" in new Fixture{
+      val user = UserTools.registerUser(registration, delayDeviceRegistration =  true)
+      UserTools.registerDevice(user.jwt)
+      val request = FakeRequest(POST, "/user/code/register")
+        .withAuth(user.jwt)
+        .withHeaders(RequestHelpers.DeviceIdHeader)
+        .withJsonBody(Json.toJson(RegisterDeviceRequest(Code("0000"))))
+      val response = route(app, request).get
+      status(response) shouldBe BAD_REQUEST
+      val failed = Json.fromJson[Failed](contentAsJson(response)).get
+      failed.validationErrors.head shouldBe Invalid(Field("code"), Reason("Missing"))
+    }
+
+    "return error if code is bad" in new Fixture {
+      val user = UserTools.registerUser(registration, delayDeviceRegistration =  true)
+      val request = FakeRequest(POST, "/user/code/register")
+        .withAuth(user.jwt)
+        .withHeaders(RequestHelpers.DeviceIdHeader)
+        .withJsonBody(Json.toJson(RegisterDeviceRequest(Code("BAD"))))
+      val response = route(app, request).get
+      status(response) shouldBe BAD_REQUEST
+      val failed = Json.fromJson[Failed](contentAsJson(response)).get
+      failed.validationErrors.head shouldBe Invalid(Field("code"), Reason("DoesNotMatch"))
+    }
+
+    "return error if device id is different" in new Fixture {
+      val user = UserTools.registerUser(registration, delayDeviceRegistration =  true)
+      val request = FakeRequest(POST, "/user/code/register")
+        .withAuth(user.jwt)
+        .withHeaders(("Device-Id", "BAD"))
+        .withJsonBody(Json.toJson(RegisterDeviceRequest(Code("0000"))))
+      val response = route(app, request).get
+      status(response) shouldBe BAD_REQUEST
+      val failed = Json.fromJson[Failed](contentAsJson(response)).get
+      failed.validationErrors.head shouldBe Invalid(Field("deviceId"), Reason("DoesNotMatch"))
+    }
+  }
+
   "user info endpoint" should {
     "return phone and name for freshly registered user" in new OneUserFixture {
-      withAuthVariants(FakeRequest(GET, "/user"), jwt) { response ⇒
+      withAuthVariants(FakeRequest(GET, "/user").withHeaders(RequestHelpers.DeviceIdHeader), jwt) { response ⇒
         val json = contentAsJson(response)
         val user = Json.fromJson[UserInfoResponse](json).get
         user.phone shouldBe validPhone
@@ -104,11 +183,14 @@ class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with
     "allow to update email" in new OneUserFixture {
       val email = User.Email("some@email.com")
       val request = FakeRequest(PATCH, "/user")
+        .withHeaders(RequestHelpers.DeviceIdHeader)
         .withJsonBody(
           Json.toJson(UserUpdateRequest(email = Some(email))))
 
       withAuthVariants(request, jwt) { response ⇒
-        val response = route(app, FakeRequest(GET, "/user").withAuth(jwt)).get
+        val response = route(app, FakeRequest(GET, "/user")
+          .withHeaders(RequestHelpers.DeviceIdHeader)
+          .withAuth(jwt)).get
         val json = contentAsJson(response)
         val user = Json.fromJson[UserInfoResponse](json).get
         user.phone shouldBe validPhone
@@ -120,6 +202,7 @@ class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with
     "issue new jwt when updating name" in new OneUserFixture {
       val name = User.Name("new name")
       val request = FakeRequest(PATCH, "/user")
+        .withHeaders(RequestHelpers.DeviceIdHeader)
         .withJsonBody(
           Json.toJson(UserUpdateRequest(name = Some(name))))
 
@@ -139,6 +222,11 @@ class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with
     }
 
   }
+  val mockSmsService = mock[SmsService]
+
+  override def overrideModules = Seq(
+    bind[SmsService].to(mockSmsService))
+
 
   trait Fixture {
     val registration = RegistrationRequest(User.Phone("+64212345678"), None, User.Name("test name"))

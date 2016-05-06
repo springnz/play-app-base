@@ -20,7 +20,9 @@ object LocationTools {
   }
 
   def submitLocation(jwt: JWTUtil.JWT)(location: Location.Location)(implicit app: Application): Location.Location = {
-    val request = FakeRequest(POST, "/location").withJsonBody(Json.toJson(Location.LocationUpdatedRequest(location)))
+    val request = FakeRequest(POST, "/location")
+      .withHeaders(RequestHelpers.DeviceIdHeader)
+      .withJsonBody(Json.toJson(Location.LocationUpdatedRequest(location)))
 
     val response = route(app, request.withAuth(jwt)).get
     status(response) shouldBe CREATED
