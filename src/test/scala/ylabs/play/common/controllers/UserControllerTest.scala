@@ -103,7 +103,7 @@ class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with
 
   "registering device" should {
     "requesting code should trigger sms" in new Fixture {
-      val user = UserTools.registerUser(registration, delayDeviceRegistration =  true)
+      val user = UserTools.registerUser(registration, delayDeviceRegistration =  true, delayCodeRequest = true)
       UserTools.requestCode(user.jwt)
       awaitCondition("should send an SMS", max = 1 second) {
         Mockito.verify(mockSmsService).send(
@@ -229,6 +229,9 @@ class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with
 
 
   trait Fixture {
+
+    Mockito.reset(mockSmsService)
+
     val registration = RegistrationRequest(User.Phone("+64212345678"), None, User.Name("test name"))
     val validPhone = Some(PhoneValidator.validate(registration.phone).get)
     val graph = app.injector.instanceOf(classOf[GraphDB]).graph

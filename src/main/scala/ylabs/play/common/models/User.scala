@@ -16,7 +16,7 @@ object User {
       deviceActivated: Boolean,
       phone: Option[Phone] = None,
       email: Option[Email] = None,
-      deviceId: DeviceId,
+      deviceId: Option[DeviceId] = None,
       code: Option[Code] = None,
       deviceEndpoint: Option[DeviceEndpoint] = None) {
     def toUserInfoResponse(jwt: JWT) = UserInfoResponse(id, name, jwt, phone, email)

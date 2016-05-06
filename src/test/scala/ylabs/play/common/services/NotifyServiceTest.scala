@@ -105,12 +105,12 @@ class NotifyServiceTest extends WordSpec with OneAppPerTestWithOverrides with Ma
   }
 
   trait InvitedUserFixture extends Fixture {
-    val user = Await.result(repoUser.createFromPhone(phone, Status(User.Invited), name, code, deviceId), 3 seconds)
+    val user = Await.result(repoUser.createFromPhone(phone, Status(User.Invited), name, Some(deviceId)), 3 seconds)
     Await.result(repoUser.setPushEndpoint(user.id, DeviceEndpoint("")), 3 seconds)
   }
 
   trait RegisteredUserFixture extends Fixture {
-    val user = Await.result(repoUser.createFromPhone(phone, Status(User.Invited), name, code, deviceId), 3 seconds)
+    val user = Await.result(repoUser.createFromPhone(phone, Status(User.Invited), name, Some(deviceId)), 3 seconds)
     Await.result(repoUser.setPushEndpoint(user.id, DeviceEndpoint("endpoint123")), 3 seconds)
   }
 

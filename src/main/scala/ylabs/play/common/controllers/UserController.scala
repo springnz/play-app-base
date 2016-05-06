@@ -71,7 +71,7 @@ class UserController @Inject() (
         repo.getFromPhone(phone) flatMap {
           case None ⇒
             val code = codeGenerator.createCode()
-            repo.createFromPhone(phone, User.Status(User.Registered), name, code, deviceId)
+            repo.createFromPhone(phone, User.Status(User.Registered), name, Some(deviceId))
               .map(u ⇒ Ok(Json.toJson(u.toUserInfoResponse(getToken(u)))))
           case Some(user) ⇒
             val devicePlatform = Platform(request.headers.get("Device-Platform").getOrElse(""))
@@ -131,7 +131,8 @@ class UserController @Inject() (
         Future { BadRequest(Json.toJson(failure)) }
       case Some(id) ⇒
         repo.registerDevice(request.user.phone.get, request.body.code, id).map {
-          case Left(fail) ⇒ BadRequest(Json.toJson(UserController.processError(fail)))
+          case Left(fail) ⇒
+            BadRequest(Json.toJson(UserController.processError(fail)))
           case Right(u) ⇒
             val devicePlatform = Platform(request.headers.get("Device-Platform").getOrElse(""))
             val deviceToken = Token(request.headers.get("Device-Push-Identifier").getOrElse(""))

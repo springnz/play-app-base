@@ -10,13 +10,17 @@ import ylabs.play.common.test.TestTools._
 import ylabs.play.common.utils.JWTUtil.JWT
 
 object UserTools {
-  def registerUser(registration: RegistrationRequest, delayDeviceRegistration: Boolean = false)(implicit app: Application): UserInfoResponse = {
+  def registerUser(registration: RegistrationRequest, delayDeviceRegistration: Boolean = false, delayCodeRequest: Boolean = false)(implicit app: Application): UserInfoResponse = {
     val request = FakeRequest(POST, "/user")
       .withHeaders(RequestHelpers.DeviceIdHeader)
       .withJsonBody(Json.toJson(registration))
     val response = route(app, request).get
     status(response) shouldBe OK
     val user = Json.fromJson[UserInfoResponse](contentAsJson(response)).get
+
+    if(!delayCodeRequest)
+      requestCode(user.jwt)
+
     if(!delayDeviceRegistration)
       registerDevice(user.jwt)
     else user
