@@ -52,4 +52,13 @@ object UserTools {
     status(response) shouldBe OK
     Json.fromJson[UserInfoResponse](contentAsJson(response)).get
   }
+
+  def getUserInfo(jwt: JWT)(id: Id[User])(implicit app: Application) = {
+    val request = FakeRequest(GET, "/user/" + id.value)
+      .withHeaders(RequestHelpers.DeviceIdHeader)
+      .withAuth(jwt)
+    val response = route(app, request).get
+    status(response) shouldBe OK
+    Json.fromJson[MinimalUser](contentAsJson(response)).get
+  }
 }
