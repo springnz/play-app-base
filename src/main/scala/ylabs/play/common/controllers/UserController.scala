@@ -70,7 +70,6 @@ class UserController @Inject() (
       case (Some(deviceId), Some(phone)) ⇒
         repo.getFromPhone(phone) flatMap {
           case None ⇒
-            val code = codeGenerator.createCode()
             repo.createFromPhone(phone, User.Status(User.Registered), name, Some(deviceId))
               .map(u ⇒ Ok(Json.toJson(u.toUserInfoResponse(getToken(u)))))
           case Some(user) ⇒

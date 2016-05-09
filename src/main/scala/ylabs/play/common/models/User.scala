@@ -19,7 +19,7 @@ object User {
       deviceId: Option[DeviceId] = None,
       code: Option[Code] = None,
       deviceEndpoint: Option[DeviceEndpoint] = None) {
-    def toUserInfoResponse(jwt: JWT) = UserInfoResponse(id, name, jwt, phone, email)
+    def toUserInfoResponse(jwt: JWT) = UserInfoResponse(id, name, jwt, phone, deviceActivated, email)
     def toMinimalUser = MinimalUser(id, name, status, phone, email)
   }
 
@@ -81,7 +81,7 @@ object User {
 
   case class RegisterDeviceRequest(code: Code) extends ApiRequest
 
-  case class UserInfoResponse(id: Id[User], name: Name, jwt: JWT, phone: Option[Phone],
+  case class UserInfoResponse(id: Id[User], name: Name, jwt: JWT, phone: Option[Phone], deviceActivated: Boolean,
     email: Option[Email] = None) extends ApiResponse
 
   implicit val userUpdateResponseFormat = Json.format[UserUpdateRequest]
