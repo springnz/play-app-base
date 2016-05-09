@@ -167,7 +167,7 @@ class UserController @Inject() (
       .map {
         case Right(user) ⇒
           val jwt = getToken(user)
-          Ok(Json.toJson(UserInfoResponse(user.id, user.name, jwt, user.phone, user.email)))
+          Ok(Json.toJson(UserInfoResponse(user.id, user.name, jwt, user.phone, user.deviceActivated, user.email)))
         case Left(fail) ⇒ Unauthorized(Json.toJson(UserController.processError(fail)))
       } recover {
         case t ⇒ log.error(s"Error updating user ${request.user.id}", t); throw t
