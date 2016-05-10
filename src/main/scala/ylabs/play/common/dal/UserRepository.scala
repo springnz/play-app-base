@@ -63,6 +63,15 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
       }
   }
 
+  def clearDevice(id: Id[User]): Future[User] = {
+    getVertexOption(id) map {
+      case None => throw FailureType.RecordNotFound
+      case Some(vertex) =>
+        vertex.setProperty(Properties.DeviceActivated, false)
+        apply(vertex)
+    }
+  }
+
   def registerDevice(phone: Phone, code: Code, deviceId: DeviceId): Future[Either[FailureType, User]] = {
     getVertexFromPhone(phone) map {
       case None => Left(FailureType.RecordNotFound)

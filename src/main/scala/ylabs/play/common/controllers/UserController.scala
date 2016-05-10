@@ -75,14 +75,14 @@ class UserController @Inject() (
           case Some(user) ⇒
             val devicePlatform = Platform(request.headers.get("Device-Platform").getOrElse(""))
             val deviceToken = Token(request.headers.get("Device-Push-Identifier").getOrElse(""))
-            repo.loginWithPhone(phone, name, User.Status(User.Registered), deviceId).map {
+            repo.loginWithPhone(phone, name, User.Status(User.Registered), deviceId).flatMap {
               case Right(u) ⇒
                 pushService.register(devicePlatform, deviceToken, u.deviceEndpoint)
                 val jwt = getToken(u)
-                Ok(Json.toJson(u.toUserInfoResponse(jwt)))
+                Future { Ok(Json.toJson(u.toUserInfoResponse(jwt))) }
 
               case Left(fail) ⇒
-                Unauthorized(Json.toJson(UserController.processError(fail)))
+                repo.clearDevice(user.id).map(u => Ok(Json.toJson(u.toUserInfoResponse(getToken(u)))))
             }
         }
 
@@ -100,6 +100,7 @@ class UserController @Inject() (
 
   def requestCode() = nonActiveAuthenticated.async { request ⇒
     val deviceId = request.headers.get("Device-Id").map(DeviceId)
+
     deviceId match {
       case None ⇒
         val invalid = Invalid(Field("Device-Id"), Reason("Missing device id"))
