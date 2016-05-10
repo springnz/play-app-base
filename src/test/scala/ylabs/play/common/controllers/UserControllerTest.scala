@@ -112,6 +112,24 @@ class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with
       }
     }
 
+    "properly reset device id" in new Fixture {
+      val user = UserTools.registerUser(registration, delayDeviceRegistration =  true, delayCodeRequest = true)
+      UserTools.requestCode(user.jwt)
+
+      val request = FakeRequest(POST, "/user/code/request")
+        .withHeaders(("Device-Id", "different"))
+        .withAuth(user.jwt)
+      val response = route(app, request).get
+      status(response) shouldBe OK
+
+      val request2 = FakeRequest(POST, "/user/code/register")
+        .withAuth(user.jwt)
+        .withHeaders(("Device-Id", "different"))
+        .withJsonBody(Json.toJson(RegisterDeviceRequest(Code("0000"))))
+      val response2 = route(app, request2).get
+      status(response2) shouldBe OK
+    }
+
     "be unauthorized if device not registered" in new Fixture {
       val user = UserTools.registerUser(registration, delayDeviceRegistration =  true)
       val request = FakeRequest(GET, "/user")

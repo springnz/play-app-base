@@ -75,7 +75,8 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
   def registerDevice(phone: Phone, code: Code, deviceId: DeviceId): Future[Either[FailureType, User]] = {
     getVertexFromPhone(phone) map {
       case None => Left(FailureType.RecordNotFound)
-      case Some(vertex) if vertex.value2(Properties.DeviceId) != deviceId.value => Left(FailureType.DeviceIdDoesNotMatch)
+      case Some(vertex) if vertex.value2(Properties.DeviceId) != deviceId.value =>
+        Left(FailureType.DeviceIdDoesNotMatch)
       case Some(vertex) if vertex.valueOption(Properties.Code).isEmpty => Left(FailureType.DeviceCodeMissing)
       case Some(vertex) if vertex.value2(Properties.Code) != code.value => Left(FailureType.DeviceCodeDoesNotMatch)
 
@@ -90,7 +91,7 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
     getVertexFromPhone(phone) map {
       case None =>  Left(FailureType.RecordNotFound)
       case Some(vertex) =>
-        vertex.setProperty(Properties.DeviceEndpoint, deviceId.value)
+        vertex.setProperty(Properties.DeviceId, deviceId.value)
         vertex.setProperty(Properties.Code, code.value)
         vertex.setProperty(Properties.DeviceActivated, false)
         Right(apply(vertex))
