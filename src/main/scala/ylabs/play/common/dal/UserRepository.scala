@@ -26,13 +26,14 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
 
 
   @label("user")
-  case class CreateUser(id: Id[User], status: Status, phone: Phone, name: Name, deviceId: Option[DeviceId], deviceActivated: Boolean = false)
+  case class CreateUser(id: Id[User], status: Status, phone: Phone, name: Name, deviceActivated: Boolean = false)
 
   def createFromPhone(phone: Phone, status: Status, name: Name, deviceId: Option[DeviceId]): Future[User] = {
     Future {
       val id = Id[User]()
-      val create = CreateUser(id, status, phone, name, deviceId)
+      val create = CreateUser(id, status, phone, name)
       val vertex = graph + create
+      deviceId.map(i => vertex.setProperty(Properties.DeviceId, i))
       User(id, name, status, deviceActivated = false, Some(phone), None, deviceId, None, None)
     }
   }
@@ -51,6 +52,7 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
       case None => Left(FailureType.RecordNotFound)
       case Some(vertex) =>
         deviceId match {
+          case _ if vertex.valueOption(Properties.DeviceId).isEmpty => Left(FailureType.DeviceIdDoesNotMatch)
           case _ if vertex.value2(Properties.DeviceId) != deviceId.value => Left(FailureType.DeviceIdDoesNotMatch)
           case _ if !vertex.value2(Properties.DeviceActivated) => Left(FailureType.DeviceNotActivated)
           case _ =>
