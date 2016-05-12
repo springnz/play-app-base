@@ -33,7 +33,7 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
       val id = Id[User]()
       val create = CreateUser(id, status, phone, name)
       val vertex = graph + create
-      deviceId.map(i => vertex.setProperty(Properties.DeviceId, i))
+      deviceId.map(i => vertex.setProperty(Properties.DeviceId, i.value))
       User(id, name, status, deviceActivated = false, Some(phone), None, deviceId, None, None)
     }
   }
