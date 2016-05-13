@@ -1,6 +1,6 @@
 package ylabs.play.common.dal
 
-import javax.inject.{Inject, Singleton}
+import javax.inject.{ Inject, Singleton }
 
 import gremlin.scala._
 import springnz.util.Logging
@@ -9,7 +9,7 @@ import ylabs.play.common.models.User._
 import ylabs.play.common.utils.FailureType
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 @Singleton
 class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
@@ -22,9 +22,6 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
     graph.V.hasLabel(Label).map(apply).toList()
   }
 
-
-
-
   @label("user")
   case class CreateUser(id: Id[User], status: Status, phone: Phone, name: Name, deviceActivated: Boolean = false)
 
@@ -33,15 +30,15 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
       val id = Id[User]()
       val create = CreateUser(id, status, phone, name)
       val vertex = graph + create
-      deviceId.map(i => vertex.setProperty(Properties.DeviceId, i.value))
+      deviceId.map(i ⇒ vertex.setProperty(Properties.DeviceId, i.value))
       User(id, name, status, deviceActivated = false, Some(phone), None, deviceId, None, None)
     }
   }
 
   def setPushEndpoint(id: Id[User], endpoint: DeviceEndpoint): Future[User] = {
     getVertexOption(id) map {
-      case None => throw FailureType.RecordNotFound
-      case Some(vertex) =>
+      case None ⇒ throw FailureType.RecordNotFound
+      case Some(vertex) ⇒
         vertex.setProperty(Properties.DeviceEndpoint, endpoint.value)
         apply(vertex)
     }
@@ -49,26 +46,26 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
 
   def loginWithPhone(phone: Phone, name: Name, status: Status, deviceId: DeviceId): Future[Either[FailureType, User]] = {
     getVertexFromPhone(phone) map {
-      case None => Left(FailureType.RecordNotFound)
-      case Some(vertex) =>
+      case None ⇒ Left(FailureType.RecordNotFound)
+      case Some(vertex) ⇒
         deviceId match {
-          case _ if vertex.valueOption(Properties.DeviceId).isEmpty => Left(FailureType.DeviceIdDoesNotMatch)
-          case _ if vertex.value2(Properties.DeviceId) != deviceId.value => Left(FailureType.DeviceIdDoesNotMatch)
-          case _ if !vertex.value2(Properties.DeviceActivated) => Left(FailureType.DeviceNotActivated)
-          case _ =>
+          case _ if vertex.valueOption(Properties.DeviceId).isEmpty      ⇒ Left(FailureType.DeviceIdDoesNotMatch)
+          case _ if vertex.value2(Properties.DeviceId) != deviceId.value ⇒ Left(FailureType.DeviceIdDoesNotMatch)
+          case _ if !vertex.value2(Properties.DeviceActivated)           ⇒ Left(FailureType.DeviceNotActivated)
+          case _ ⇒
             if (status == Status(Registered)) {
               vertex.setProperty(Properties.Name, name.value)
               vertex.setProperty(Properties.Status, Registered)
             }
             Right(apply(vertex))
         }
-      }
+    }
   }
 
   def clearDevice(id: Id[User]): Future[User] = {
     getVertexOption(id) map {
-      case None => throw FailureType.RecordNotFound
-      case Some(vertex) =>
+      case None ⇒ throw FailureType.RecordNotFound
+      case Some(vertex) ⇒
         vertex.setProperty(Properties.DeviceActivated, false)
         apply(vertex)
     }
@@ -76,23 +73,23 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
 
   def registerDevice(phone: Phone, code: Code, deviceId: DeviceId): Future[Either[FailureType, User]] = {
     getVertexFromPhone(phone) map {
-      case None => Left(FailureType.RecordNotFound)
-      case Some(vertex) if vertex.value2(Properties.DeviceId) != deviceId.value =>
+      case None ⇒ Left(FailureType.RecordNotFound)
+      case Some(vertex) if vertex.value2(Properties.DeviceId) != deviceId.value ⇒
         Left(FailureType.DeviceIdDoesNotMatch)
-      case Some(vertex) if vertex.valueOption(Properties.Code).isEmpty => Left(FailureType.DeviceCodeMissing)
-      case Some(vertex) if vertex.value2(Properties.Code) != code.value => Left(FailureType.DeviceCodeDoesNotMatch)
+      case Some(vertex) if vertex.valueOption(Properties.Code).isEmpty  ⇒ Left(FailureType.DeviceCodeMissing)
+      case Some(vertex) if vertex.value2(Properties.Code) != code.value ⇒ Left(FailureType.DeviceCodeDoesNotMatch)
 
-      case Some(vertex) =>
+      case Some(vertex) ⇒
         vertex.removeProperties(Properties.Code)
         vertex.setProperty(Properties.DeviceActivated, true)
         Right(apply(vertex))
     }
   }
 
-  def setDeviceCode(phone: Phone, code: Code, deviceId: DeviceId) : Future[Either[FailureType, User]] = {
+  def setDeviceCode(phone: Phone, code: Code, deviceId: DeviceId): Future[Either[FailureType, User]] = {
     getVertexFromPhone(phone) map {
-      case None =>  Left(FailureType.RecordNotFound)
-      case Some(vertex) =>
+      case None ⇒ Left(FailureType.RecordNotFound)
+      case Some(vertex) ⇒
         vertex.setProperty(Properties.DeviceId, deviceId.value)
         vertex.setProperty(Properties.Code, code.value)
         vertex.setProperty(Properties.DeviceActivated, false)
@@ -100,25 +97,24 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
     }
   }
 
-
-
   //TODO once we have user management sorted
-//  def createFromEmail(email: Email, name: Name, status: Status, endpoint: Option[DeviceEndpoint] = None): Future[User] = {
-//    val future = createFromVertex(getVertexFromEmail(email), None, Some(email), name, status, endpoint)
-//    future.onComplete {
-//      case Success(vertex) ⇒ log.info(s"registration successful: ${email.value} -> $vertex")
-//      case Failure(t)      ⇒ log.error(s"cannot create user for ${email.value}", t)
-//    }
-//    future
-//  }
+  //  def createFromEmail(email: Email, name: Name, status: Status, endpoint: Option[DeviceEndpoint] = None): Future[User] = {
+  //    val future = createFromVertex(getVertexFromEmail(email), None, Some(email), name, status, endpoint)
+  //    future.onComplete {
+  //      case Success(vertex) ⇒ log.info(s"registration successful: ${email.value} -> $vertex")
+  //      case Failure(t)      ⇒ log.error(s"cannot create user for ${email.value}", t)
+  //    }
+  //    future
+  //  }
 
-  def update(id: Id[User], update: UserUpdateRequest): Future[Either[FailureType, User]] =
+  def update(id: Id[User], phone: Option[Phone], email: Option[Email], name: Option[Name], status: Option[Status]): Future[Either[FailureType, User]] =
     getVertexOption(id).map {
       case Some(vertex) ⇒
         // only update the properties that are defined
-        update.phone.map { phone ⇒ vertex.property(Properties.Phone.value, phone.value) }
-        update.email.map { email ⇒ vertex.property(Properties.Email.value, email.value) }
-        update.name.map { name ⇒ vertex.property(Properties.Name.value, name.value) }
+        phone.map { phone ⇒ vertex.setProperty(Properties.Phone, phone.value) }
+        email.map { email ⇒ vertex.setProperty(Properties.Email, email.value) }
+        name.map { name ⇒ vertex.setProperty(Properties.Name, name.value) }
+        status.map { status ⇒ vertex.setProperty(Properties.Status, status.value) }
         Right(apply(vertex))
       case None ⇒ Left(FailureType.RecordNotFound)
     }

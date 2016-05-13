@@ -164,7 +164,7 @@ class UserController @Inject() (
   }
 
   def update() = authenticated.async(parse.json[UserUpdateRequest]) { request ⇒
-    repo.update(request.user.id, request.body)
+    repo.update(request.user.id, request.body.phone, request.body.email, request.body.name, None)
       .map {
         case Right(user) ⇒
           val jwt = getToken(user)
