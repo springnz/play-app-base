@@ -82,6 +82,7 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
       case Some(vertex) ⇒
         vertex.removeProperties(Properties.Code)
         vertex.setProperty(Properties.DeviceActivated, true)
+        vertex.setProperty(Properties.Status, Registered)
         Right(apply(vertex))
     }
   }
