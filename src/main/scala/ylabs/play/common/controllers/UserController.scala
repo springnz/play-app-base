@@ -78,6 +78,7 @@ class UserController @Inject() (
             repo.loginWithPhone(phone, name, User.Status(User.Registered), deviceId).flatMap {
               case Right(u) ⇒
                 pushService.register(devicePlatform, deviceToken, u.deviceEndpoint)
+                  .map(_.map(endpoint => repo.setPushEndpoint(u.id, endpoint)))
                 val jwt = getToken(u)
                 Future { Ok(Json.toJson(u.toUserInfoResponse(jwt))) }
 
@@ -137,6 +138,7 @@ class UserController @Inject() (
             val devicePlatform = Platform(request.headers.get("Device-Platform").getOrElse(""))
             val deviceToken = Token(request.headers.get("Device-Push-Identifier").getOrElse(""))
             pushService.register(devicePlatform, deviceToken, u.deviceEndpoint)
+              .map(_.map(endpoint => repo.setPushEndpoint(u.id, endpoint)))
             Ok(Json.toJson(u.toUserInfoResponse(getToken(u))))
         }
     }
