@@ -23,7 +23,7 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
   }
 
   @label("user")
-  case class CreateUser(id: Id[User], status: Status, phone: Phone, name: Name, deviceActivated: Boolean = false)
+  case class CreateUser(id: Id[User], status: Status, phone: Phone, name: Name, deviceActivated: Boolean = false, isTester: Boolean = false)
 
   def createFromPhone(phone: Phone, status: Status, name: Name, deviceId: Option[DeviceId]): Future[User] = {
     Future {
@@ -31,7 +31,7 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
       val create = CreateUser(id, status, phone, name)
       val vertex = graph + create
       deviceId.map(i ⇒ vertex.setProperty(Properties.DeviceId, i.value))
-      User(id, name, status, deviceActivated = false, Some(phone), None, deviceId, None, None)
+      User(id, name, status, deviceActivated = false, isTester = false, Some(phone), None, deviceId, None, None)
     }
   }
 
@@ -119,6 +119,13 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
         Right(apply(vertex))
       case None ⇒ Left(FailureType.RecordNotFound)
     }
+
+  def setTesterStatus(id: Id[User], isTester: Boolean) = {
+    getVertexOption(id) map {
+      case Some(vertex) ⇒ vertex.setProperty(Properties.IsTester, isTester)
+      case _            ⇒ Left(FailureType.RecordNotFound)
+    }
+  }
 
   def get(id: Id[User]): Future[Option[User]] =
     getVertexOption(id) map (_.map(apply))

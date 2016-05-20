@@ -14,6 +14,7 @@ object User {
       name: Name,
       status: Status,
       deviceActivated: Boolean,
+      isTester: Boolean,
       phone: Option[Phone] = None,
       email: Option[Email] = None,
       deviceId: Option[DeviceId] = None,
@@ -60,6 +61,7 @@ object User {
     object Status extends Key[String]("status")
     object Phone extends Key[String]("phone")
     object Email extends Key[String]("email")
+    object IsTester extends Key[Boolean]("isTester")
 
     object DeviceActivated extends Key[Boolean]("deviceActivated")
     object Code extends Key[String]("code")

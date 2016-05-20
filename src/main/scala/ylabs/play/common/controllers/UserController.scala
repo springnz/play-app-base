@@ -112,7 +112,7 @@ class UserController @Inject() (
           case Left(fail) ⇒
             BadRequest(Json.toJson(UserController.processError(fail)))
 
-          case Right(User.User(_, name, _, _, Some(phone), _, _, Some(code), _)) ⇒
+          case Right(User.User(_, name, _, _, _, Some(phone), _, _, Some(code), _)) ⇒
             val messageText = configuration.config
               .getString("auth.confirmationText").format(name.value, code.value)
             smsService.send(phone, Text(messageText))

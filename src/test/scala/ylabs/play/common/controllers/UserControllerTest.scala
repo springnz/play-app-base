@@ -112,6 +112,13 @@ class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with
       }
     }
 
+    "should login if tester account, even if not activated" in new Fixture {
+      val user = UserTools.registerUser(registration, delayDeviceRegistration =  true, delayCodeRequest = true)
+      userRepo.setTesterStatus(user.id, true)
+      val info = UserTools.getUser(user.jwt)
+      info.id shouldBe user.id
+    }
+
     "properly reset device id" in new Fixture {
       val user = UserTools.registerUser(registration, delayDeviceRegistration =  true, delayCodeRequest = true)
       UserTools.requestCode(user.jwt)
@@ -253,6 +260,9 @@ class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with
     val registration = RegistrationRequest(User.Phone("+64212345678"), None, User.Name("test name"))
     val validPhone = Some(PhoneValidator.validate(registration.phone).get)
     val graph = app.injector.instanceOf(classOf[GraphDB]).graph
+
+
+    val userRepo = app.injector.instanceOf(classOf[UserRepository])
 
     val jwtUtil = app.injector.instanceOf(classOf[JWTUtil])
     def parseJwt(response: UserInfoResponse): JWTClaimsSet =
