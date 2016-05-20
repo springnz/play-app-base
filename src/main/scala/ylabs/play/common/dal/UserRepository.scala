@@ -48,16 +48,21 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
     getVertexFromPhone(phone) map {
       case None ⇒ Left(FailureType.RecordNotFound)
       case Some(vertex) ⇒
-        deviceId match {
-          case _ if vertex.valueOption(Properties.DeviceId).isEmpty      ⇒ Left(FailureType.DeviceIdDoesNotMatch)
-          case _ if vertex.value2(Properties.DeviceId) != deviceId.value ⇒ Left(FailureType.DeviceIdDoesNotMatch)
-          case _ if !vertex.value2(Properties.DeviceActivated)           ⇒ Left(FailureType.DeviceNotActivated)
-          case _ ⇒
-            if (status == Status(Registered)) {
-              vertex.setProperty(Properties.Name, name.value)
-              vertex.setProperty(Properties.Status, Registered)
+        vertex.value2(Properties.IsTester) match {
+          case true => Right(apply(vertex))
+
+          case _ =>
+            deviceId match {
+              case _ if vertex.valueOption(Properties.DeviceId).isEmpty      ⇒ Left(FailureType.DeviceIdDoesNotMatch)
+              case _ if vertex.value2(Properties.DeviceId) != deviceId.value ⇒ Left(FailureType.DeviceIdDoesNotMatch)
+              case _ if !vertex.value2(Properties.DeviceActivated)           ⇒ Left(FailureType.DeviceNotActivated)
+              case _ ⇒
+                if (status == Status(Registered)) {
+                  vertex.setProperty(Properties.Name, name.value)
+                  vertex.setProperty(Properties.Status, Registered)
+                }
+                Right(apply(vertex))
             }
-            Right(apply(vertex))
         }
     }
   }
