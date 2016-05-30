@@ -7,7 +7,7 @@ import com.typesafe.config.ConfigFactory
 import springnz.util.Logging
 import springnz.util.Pimpers.FuturePimper
 import ylabs.play.common.models.Notify
-import ylabs.play.common.models.Sms.{From, Sms, Text}
+import ylabs.play.common.models.Sms._
 import ylabs.play.common.models.User.Phone
 
 import scala.collection.JavaConversions._
@@ -19,15 +19,19 @@ class SmsService extends Logging {
   lazy val client = new TwilioRestClient(config.getString("twilio.accountSid"), config.getString("twilio.authToken"))
   lazy val messageFactory = client.getAccount.getSmsFactory
 
+  lazy val statusCallback = config.getString("twilio.endpoint")
+
   def send(sms: Sms)(implicit ec: ExecutionContext): Future[String] = Future {
     log.debug(s"attempting to send $sms")
-    val message = messageFactory.create(sms.asMap)
+    val endpoint = if(statusCallback.isEmpty) Map( StatusCallback -> statusCallback ) else Map()
+    val map = sms.asMap ++ endpoint
+    val message = messageFactory.create(map)
     val sid = message.getSid
-    log.info(s"sms sent to ${sms.to} - sid=$sid")
+    log.info(s"sms sent to ${sms.to} - sid=$sid with endpoint=$endpoint")
     sid
   }.withErrorLog(s"send failed for sms($sms).")
 
-  def send(to: Phone, text: Text)(implicit ec: ExecutionContext): Future[String] =
+  def send(to: Phone, text: Text, endpoint: Option[StatusCallback])(implicit ec: ExecutionContext): Future[String] =
     send(
       Sms(
         From(config.getString("twilio.sender")),
