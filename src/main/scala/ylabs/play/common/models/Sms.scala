@@ -12,6 +12,8 @@ object Sms {
 
   case class SmsStatusChanged(From: From, To: Phone, Body: Text, MessageStatus: Status, ErrorCode: ErrorCode)
 
+  case class Smid(value: String) extends AnyVal
+
   case class StatusCallback(value: String) extends AnyVal
   case class From(value: String) extends AnyVal
   case class Text(value: String) extends AnyVal
@@ -19,6 +21,7 @@ object Sms {
   case class ErrorCode(value: String) extends AnyVal
   case class Status(value: String) extends AnyVal
 
+  implicit val smidFormat = IDJson(Smid.apply)(Smid.unapply)
   implicit val fromFormat = IDJson(From.apply)(From.unapply)
   implicit val textFormat = IDJson(Text.apply)(Text.unapply)
   implicit val statusFormat = IDJson(Status.apply)(Status.unapply)

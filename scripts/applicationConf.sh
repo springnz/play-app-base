@@ -30,7 +30,7 @@ eval $sedcmd "s#%common.aws.s3_bucket%#aws-bucket-name#g" $TEST_APP_CONF
 eval $sedcmd "s#%common.twilio.accountsid%#twilio-id-hash#g" $TEST_APP_CONF
 eval $sedcmd "s#%common.twilio.authtoken%#twilio-token-hash#g" $TEST_APP_CONF
 eval $sedcmd "s#%common.twilio.sender%#+15005550006#g" $TEST_APP_CONF
-eval $sedcmd "s#%common.twilio.status%#http://172.16.200.67:9000/sms/status#g" $TEST_APP_CONF
+eval $sedcmd "s#%common.twilio.endpoint%#http://172.16.200.67:9000/sms/status#g" $TEST_APP_CONF
 
 eval $sedcmd "s#%common.notification.region%#aws-region#g" $TEST_APP_CONF
 eval $sedcmd "s#%common.notification.android%#test-ARN-for-GCM...arn:aws:sns:some-aws-region:some-sns-id:app/GCM/some-app-name#g" $TEST_APP_CONF

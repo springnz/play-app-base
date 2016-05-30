@@ -17,13 +17,14 @@ import scala.concurrent.{ExecutionContext, Future}
 class SmsService extends Logging {
   lazy val config = ConfigFactory.load()
   lazy val client = new TwilioRestClient(config.getString("twilio.accountSid"), config.getString("twilio.authToken"))
-  lazy val messageFactory = client.getAccount.getSmsFactory
+  lazy val account = client.getAccount
+  lazy val messageFactory = account.getSmsFactory
 
   lazy val statusCallback = config.getString("twilio.endpoint")
 
   def send(sms: Sms)(implicit ec: ExecutionContext): Future[String] = Future {
     log.debug(s"attempting to send $sms")
-    val endpoint = if(statusCallback.isEmpty) Map( StatusCallback -> statusCallback ) else Map()
+    val endpoint = if(statusCallback.isEmpty) Map( "StatusCallback" -> statusCallback ) else Map()
     val map = sms.asMap ++ endpoint
     val message = messageFactory.create(map)
     val sid = message.getSid
@@ -31,7 +32,16 @@ class SmsService extends Logging {
     sid
   }.withErrorLog(s"send failed for sms($sms).")
 
-  def send(to: Phone, text: Text, endpoint: Option[StatusCallback])(implicit ec: ExecutionContext): Future[String] =
+  def get(smid: Smid)(implicit ec: ExecutionContext): Future[Sms] = Future {
+    val result = account.getSms(smid.value)
+    Sms(
+      From(result.getFrom),
+      Phone(result.getTo),
+      Text(result.getBody)
+    )
+  }
+
+  def send(to: Phone, text: Text)(implicit ec: ExecutionContext): Future[String] =
     send(
       Sms(
         From(config.getString("twilio.sender")),

@@ -37,7 +37,7 @@ twilio {
   accountSid = "%common.twilio.accountsid%"
   authToken = "%common.twilio.authtoken%"
   sender = "%common.twilio.sender%"
-  endpoint = "%common.twilio.status%"
+  endpoint = "%common.twilio.endpoint%"
 }
 
 notification {
