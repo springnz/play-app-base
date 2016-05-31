@@ -24,7 +24,7 @@ class SmsService extends Logging {
 
   def send(sms: Sms)(implicit ec: ExecutionContext): Future[String] = Future {
     log.debug(s"attempting to send $sms")
-    val endpoint = if(statusCallback.isEmpty) Map( "StatusCallback" -> statusCallback ) else Map()
+    val endpoint = if(!statusCallback.isEmpty) Map( "StatusCallback" -> statusCallback ) else Map()
     val map = sms.asMap ++ endpoint
     val message = messageFactory.create(map)
     val sid = message.getSid
