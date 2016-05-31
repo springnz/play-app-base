@@ -13,7 +13,7 @@ object StoredSms {
     def toSms = Sms.Sms(sms.from, sms.to, sms.body)
   }
 
-  val Label = "StoredSms"
+  val Label = "storedsms"
 
   object Properties {
     object Id extends Key[String]("id")

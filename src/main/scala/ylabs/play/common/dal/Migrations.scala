@@ -8,7 +8,7 @@ import springnz.orientdb.migration.{Migration, Migrator, ODBMigrations}
 import springnz.orientdb.pool.ODBConnectionPool
 import springnz.orientdb.session.ODBSession
 import springnz.util.Logging
-import ylabs.play.common.models.{Location, User}
+import ylabs.play.common.models.{StoredSms, Location, User}
 
 import scala.util.{Failure, Success}
 
@@ -90,6 +90,37 @@ trait Migrations extends ODBMigrations with ODBScala with Logging {
         "location.timestamp",
         INDEX_TYPE.NOTUNIQUE_HASH_INDEX,
         Location.Properties.Timestamp.value)
+    }
+
+  def smsStorageClass: ODBSession[Unit] =
+    ODBSession { implicit db ⇒
+      val smsClass = createVertexClass(StoredSms.Label)
+
+      /**
+       * ID property & index
+       */
+      smsClass.createProperty(StoredSms.Properties.Id.value, OType.STRING)
+        .setMandatory(true)
+        .setReadonly(true)
+        .setNotNull(true)
+
+      smsClass.createIndex(
+        "storedsms.id",
+        INDEX_TYPE.UNIQUE_HASH_INDEX,
+        StoredSms.Properties.Id.value)
+
+      /**
+       * Timestamp property & index
+       */
+      smsClass.createProperty(StoredSms.Properties.LastTried.value, OType.DATETIME)
+        .setMandatory(true)
+        .setReadonly(true)
+        .setNotNull(true)
+
+      smsClass.createIndex(
+        "storedsms.lastTried",
+        INDEX_TYPE.NOTUNIQUE_HASH_INDEX,
+        StoredSms.Properties.LastTried.value)
     }
 
   run()
