@@ -51,7 +51,9 @@ class ErrorHandler @Inject() (
     //So this extracts the field and reason
     val errorRegex = """\(obj.([^,]+),List\(ValidationError\(List\(([^\)]+)""".r
     val errors = errorRegex.findAllMatchIn(message) map { m ⇒ Invalid(Field(m.group(1)), Reason(errorToMessage(m.group(2)))) }
-    val failed = Failed(errors.toList)
+    val list = if(errors.nonEmpty) errors.toList else List(Invalid(Field("Unknown"), Reason(message)))
+
+    val failed = Failed(list)
     Future.successful(BadRequest(Json.toJson(failed)))
   }
 }
