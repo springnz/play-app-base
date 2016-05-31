@@ -22,7 +22,7 @@ class SmsController  @Inject()  (smsService: SmsService, smsRepository: SmsRepos
     val messageStatus: String = request.body("MessageStatus").head
     val errorStatus: Option[String] = request.body.get("ErrorStatus").map(_.head)
 
-    log.debug("Sms status changed", to, messageStatus, errorStatus)
+    log.debug(s"Sms status changed $to $messageStatus $errorStatus")
 
     def handle(error: ErrorCode): Future[Unit] = smsService.get(Smid(messageSid)).flatMap(s => {
       error match {
