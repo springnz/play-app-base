@@ -10,7 +10,7 @@ object Sms {
       Map("From" → from.value, "To" → to.value, "Body" → text.value)
   }
 
-  case class SmsStatusChanged(From: From, To: Phone, Body: Text, MessageStatus: Status, ErrorCode: ErrorCode)
+  case class SmsStatusChanged(from: From, to: Phone, body: Text, status: Status, errorCode: ErrorCode)
 
   case class Smid(value: String) extends AnyVal
 
