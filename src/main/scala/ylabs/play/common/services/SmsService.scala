@@ -20,7 +20,7 @@ class SmsService extends Logging {
   lazy val account = client.getAccount
   lazy val messageFactory = account.getSmsFactory
 
-  lazy val statusCallback = config.getString("twilio.endpoint")
+  lazy val statusCallback = config.getString("twilio.status")
 
   def send(sms: Sms)(implicit ec: ExecutionContext): Future[String] = Future {
     log.debug(s"attempting to send $sms")
