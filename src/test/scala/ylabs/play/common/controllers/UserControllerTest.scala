@@ -14,6 +14,7 @@ import play.api.test.FakeRequest
 import play.api.test.Helpers._
 import ylabs.play.common.dal.{GraphDB, UserRepository}
 import ylabs.play.common.models.Helpers.ApiFailure.Failed
+import ylabs.play.common.models.Sms.Text
 import ylabs.play.common.models.{Sms, User}
 import ylabs.play.common.models.User._
 import ylabs.play.common.models.ValidationError.{Field, Invalid, Reason}
@@ -108,7 +109,7 @@ class UserControllerTest extends MyPlaySpec with OneAppPerTestWithOverrides with
       awaitCondition("should send an SMS", max = 1 second) {
         Mockito.verify(mockSmsService).send(
           is(user.phone.get.value).asInstanceOf[Phone],
-          is(Sms.Text("test name, your confirmation code is: 0000. Thanks!")))(any[ExecutionContext])
+          is("test name, your confirmation code is: 0000. Thanks!").asInstanceOf[Text])(any[ExecutionContext])
       }
     }
 
