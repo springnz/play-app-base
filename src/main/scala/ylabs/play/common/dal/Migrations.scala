@@ -1,5 +1,6 @@
 package ylabs.play.common.dal
 
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.typesafe.config.ConfigFactory
@@ -17,6 +18,19 @@ trait Migrations extends ODBMigrations with ODBScala with Logging {
   implicit lazy val pool = ODBConnectionPool.fromConfig(conf.getConfig("orientdb"))
 
   def migrations: Seq[Migration] = Seq()
+
+  def getOrCreateVertexClass(name: String)(implicit db: ODatabaseDocumentTx) =
+    findClass(name) match {
+      case null => createVertexClass(name)
+      case c => c
+    }
+
+  def getOrCreateEdgeClass(name: String)(implicit db: ODatabaseDocumentTx) =
+    findClass(name) match {
+      case null => createEdgeClass(name)
+      case c => c
+    }
+
 
   // called on construction, just like in play's own ApplicationEvolutions
   def run(): Unit = {
@@ -38,7 +52,7 @@ trait Migrations extends ODBMigrations with ODBScala with Logging {
 
   def userClass: ODBSession[Unit] =
     ODBSession { implicit db ⇒
-      val userClass = createVertexClass(User.Label)
+      val userClass = getOrCreateVertexClass(User.Label)
 
       userClass.createProperty(User.Properties.Id.value, OType.STRING)
         .setMandatory(true)
@@ -63,7 +77,7 @@ trait Migrations extends ODBMigrations with ODBScala with Logging {
 
   def locationClass: ODBSession[Unit] =
     ODBSession { implicit db ⇒
-      val locationClass = createVertexClass(Location.Label)
+      val locationClass = getOrCreateVertexClass(Location.Label)
 
       /**
         * ID property & index
@@ -94,7 +108,7 @@ trait Migrations extends ODBMigrations with ODBScala with Logging {
 
   def smsStorageClass: ODBSession[Unit] =
     ODBSession { implicit db ⇒
-      val smsClass = createVertexClass(StoredSms.Label)
+      val smsClass = getOrCreateVertexClass(StoredSms.Label)
 
       /**
        * ID property & index
