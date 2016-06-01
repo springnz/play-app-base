@@ -26,12 +26,14 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
   case class CreateUser(id: Id[User], status: Status, phone: Phone, name: Name, deviceActivated: Boolean = false, isTester: Boolean = false)
 
   def createFromPhone(phone: Phone, status: Status, name: Name, deviceId: Option[DeviceId]): Future[User] = {
-    Future {
-      val id = Id[User]()
-      val create = CreateUser(id, status, phone, name)
-      val vertex = graph + create
-      deviceId.map(i ⇒ vertex.setProperty(Properties.DeviceId, i.value))
-      User(id, name, status, deviceActivated = false, isTester = false, Some(phone), None, deviceId, None, None)
+    getVertexFromPhone(phone) map {
+      case Some(vertex) => apply(vertex)
+      case None =>
+        val id = Id[User]()
+        val create = CreateUser(id, status, phone, name)
+        val vertex = graph + create
+        deviceId.map(i ⇒ vertex.setProperty(Properties.DeviceId, i.value))
+        User(id, name, status, deviceActivated = false, isTester = false, Some(phone), None, deviceId, None, None)
     }
   }
 
