@@ -2,7 +2,7 @@ package ylabs.play.common.dal
 
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
-import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.metadata.schema.{OImmutableClass, OType}
 import com.typesafe.config.ConfigFactory
 import springnz.orientdb.ODBScala
 import springnz.orientdb.migration.{Migration, Migrator, ODBMigrations}
@@ -20,13 +20,13 @@ trait Migrations extends ODBMigrations with ODBScala with Logging {
   def migrations: Seq[Migration] = Seq()
 
   def getOrCreateVertexClass(name: String)(implicit db: ODatabaseDocumentTx) =
-    findClass(name) match {
+    findClass(OImmutableClass.VERTEX_CLASS_NAME + "_" +name) match {
       case null => createVertexClass(name)
       case c => c
     }
 
   def getOrCreateEdgeClass(name: String)(implicit db: ODatabaseDocumentTx) =
-    findClass(name) match {
+    findClass(OImmutableClass.EDGE_CLASS_NAME + "_" +name) match {
       case null => createEdgeClass(name)
       case c => c
     }
