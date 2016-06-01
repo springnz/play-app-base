@@ -3,6 +3,7 @@ package ylabs.play.common.controllers
 import javax.inject.Inject
 
 
+import play.api.libs.json.Json
 import play.api.mvc.{Action, Controller}
 import springnz.util.Logging
 import ylabs.play.common.dal.SmsRepository
@@ -46,6 +47,6 @@ class SmsController  @Inject()  (smsService: SmsService, smsRepository: SmsRepos
       case _ => Future.successful(() => Unit)
     }
 
-    toDo.map(_ => Ok)
+    toDo.map(_ => Ok(Json.toJson(Smid(messageSid))))
   }
 }
