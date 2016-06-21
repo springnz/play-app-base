@@ -39,7 +39,7 @@ class PushNotificationService extends Logging {
   def register(platform: Platform, token: Token, currentEndpoint: Option[DeviceEndpoint] = None)(implicit ec: ExecutionContext): Future[Option[DeviceEndpoint]] = {
 
     val platformEndpoint = platform.value.isEmpty match {
-      case false ⇒ PlatformEndpoint(config.getString("platform." + platform.value))
+      case false ⇒ PlatformEndpoint(config.getString("platform." + platform.value.toLowerCase))
       case true  ⇒ PlatformEndpoint("")
     }
 
