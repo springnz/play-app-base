@@ -46,9 +46,9 @@ object AuthenticationHelpers extends Logging {
 
   def getUser(jwt: JWTClaimsSet, deviceId: DeviceId, userRepository: UserRepository, checkActivated: Boolean)(implicit ec: ExecutionContext): Future[Option[User.User]] = {
     val id = Id[User.User](jwt.getSubject)
-    userRepository.get(id).map({
+    userRepository.get(id)/*.map({
       case Some(u) if !checkActivated || u.isTester || (u.deviceId.isDefined && u.deviceActivated && u.deviceId.get == deviceId) => Some(u)
       case _ => None
-    })
+    })*/
   }
 }

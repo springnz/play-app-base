@@ -39,6 +39,9 @@ object User {
       phone: Option[Phone] = None,
       email: Option[Email] = None)
 
+  case class UserFirebaseCreate(phone: Phone, name: Name, status: Status)
+  case class UserFirebaseUpdate(name: Option[Name], status: Option[Status])
+
   implicit val userNameFormat = IDJson(Name)(Name.unapply)
   implicit val userStatusFormat = IDJson(Status)(Status.unapply)
   implicit val userPhoneFormat = IDJson(Phone)(Phone.unapply)
@@ -47,6 +50,8 @@ object User {
   implicit val deviceIdFormat = IDJson(DeviceId)(DeviceId.unapply)
   implicit val deviceCodeFormat = IDJson(Code)(Code.unapply)
   implicit val minimalUserFormat = Json.format[MinimalUser]
+  implicit val firebaseUserCreate = Json.format[UserFirebaseCreate]
+  implicit val firebaseUserUpdate = Json.format[UserFirebaseUpdate]
 
   def phoneFromClaims(claims: JWTClaimsSet) = Phone(claims.getClaim(JwtClaims.Phone).toString)
   def nameFromClaims(claims: JWTClaimsSet) = Name(claims.getClaim(JwtClaims.Name).toString)
@@ -73,6 +78,7 @@ object User {
     val Name = "name"
     val Phone = "phone"
     val Email = "email"
+    val FirebaseToken = "firebaseToken"
   }
 
   def apply(v: Vertex) = v.toCC[User]

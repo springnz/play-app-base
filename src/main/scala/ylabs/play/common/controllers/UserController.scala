@@ -3,23 +3,25 @@ package ylabs.play.common.controllers
 import javax.inject.Inject
 
 import akka.util.Timeout
+import com.google.firebase.auth.FirebaseAuth
 import play.api.libs.json.Json
-import play.api.mvc.{ Action, Controller }
+import play.api.mvc.{Action, Controller}
 import springnz.util.Logging
 import ylabs.play.common.dal.UserRepository
+import ylabs.play.common.firebase.rest.UserFirebaseRest
 import ylabs.play.common.models.Helpers.ApiFailure.Failed
 import ylabs.play.common.models.Helpers.Id
-import ylabs.play.common.models.PushNotification.{ Platform, Token }
+import ylabs.play.common.models.PushNotification.{Platform, Token}
 import ylabs.play.common.models.Sms.Text
 import ylabs.play.common.models.User
 import ylabs.play.common.models.User._
-import ylabs.play.common.models.ValidationError.{ Field, Invalid, Reason }
-import ylabs.play.common.services.{ SmsService, PushNotificationService }
+import ylabs.play.common.models.ValidationError.{Field, Invalid, Reason}
+import ylabs.play.common.services.{PushNotificationService, SmsService}
 import ylabs.play.common.utils.JWTUtil.JWT
 import ylabs.play.common.utils._
 
 import scala.concurrent.duration._
-import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 object UserController {
   def processError(failure: FailureType): Failed = {
@@ -42,6 +44,7 @@ object UserController {
 
 class UserController @Inject() (
     repo: UserRepository,
+    firebase: UserFirebaseRest,
     pushService: PushNotificationService,
     smsService: SmsService,
     configuration: Configuration,
@@ -53,10 +56,14 @@ class UserController @Inject() (
   implicit val timeout: Timeout = 5.seconds
 
   def getToken(user: User): JWT = {
+
+    val firebaseToken = FirebaseAuth.getInstance().createCustomToken(user.id.value)
+    println(s"fbtoken:$firebaseToken")
     jwtUtil.issueToken(user.id,
       JwtClaims.Phone -> user.phone.getOrElse(Phone("")).value,
       JwtClaims.Email -> user.email.getOrElse(Email("")).value,
-      JwtClaims.Name → user.name.value)
+      JwtClaims.Name → user.name.value,
+      JwtClaims.FirebaseToken → firebaseToken)
   }
 
   def create() = Action.async(parse.json[RegistrationRequest]) { request ⇒
@@ -70,9 +77,14 @@ class UserController @Inject() (
       case (Some(deviceId), Some(phone)) ⇒
         repo.getFromPhone(phone) flatMap {
           case None ⇒
-            repo.createFromPhone(phone, User.Status(User.Registered), name, Some(deviceId))
-              .map(u ⇒ Ok(Json.toJson(u.toUserInfoResponse(getToken(u)))))
+            for {
+              userFirebaseId ← firebase.create(phone, name, User.Status(User.Registered))
+              user ← repo.createFromPhone(phone, User.Status(User.Registered), name, Some(deviceId), Some(userFirebaseId))
+            } yield Ok(Json.toJson(user.toUserInfoResponse(getToken(user))))
           case Some(user) ⇒
+
+            firebase.update(user.id, Some(name), Some(User.Status(User.Registered)))
+
             val devicePlatform = Platform(request.headers.get("Device-Platform").getOrElse(""))
             val deviceToken = Token(request.headers.get("Device-Push-Identifier").getOrElse(""))
             repo.loginWithPhone(phone, name, User.Status(User.Registered), deviceId).flatMap {

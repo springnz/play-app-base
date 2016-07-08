@@ -17,3 +17,4 @@ project.sublime-workspace
 src/main/resources/application.conf
 src/test/resources/application.conf
 scripts/appConf.sh
+src/main/resources/firebaseCredentials.json

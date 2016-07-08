@@ -33,7 +33,8 @@ libraryDependencies ++= Seq(
   "com.google.maps" % "google-maps-services" % "0.1.12",
   "org.julienrf" %% "play-json-derived-codecs" % "3.0",
   "org.scalatestplus.play" %% "scalatestplus-play" % "1.5.0",
-  "org.mockito" % "mockito-core" % "1.10.19"
+  "org.mockito" % "mockito-core" % "1.10.19",
+  "com.google.firebase" % "firebase-server-sdk" % "3.0.1"
 )
 
 fork := true

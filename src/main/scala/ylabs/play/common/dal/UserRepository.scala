@@ -25,11 +25,11 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
   @label("user")
   case class CreateUser(id: Id[User], status: Status, phone: Phone, name: Name, deviceActivated: Boolean = false, isTester: Boolean = false)
 
-  def createFromPhone(phone: Phone, status: Status, name: Name, deviceId: Option[DeviceId]): Future[User] = {
+  def createFromPhone(phone: Phone, status: Status, name: Name, deviceId: Option[DeviceId], idFirebase: Option[Id[User]] = None): Future[User] = {
     getVertexFromPhone(phone) map {
       case Some(vertex) => apply(vertex)
       case None =>
-        val id = Id[User]()
+        val id = idFirebase.getOrElse(Id[User]())
         val create = CreateUser(id, status, phone, name)
         val vertex = graph + create
         deviceId.map(i ⇒ vertex.setProperty(Properties.DeviceId, i.value))
@@ -55,9 +55,9 @@ class UserRepository @Inject() (graphDB: GraphDB) extends Logging {
 
           case _ =>
             deviceId match {
-              case _ if vertex.valueOption(Properties.DeviceId).isEmpty      ⇒ Left(FailureType.DeviceIdDoesNotMatch)
+              /*case _ if vertex.valueOption(Properties.DeviceId).isEmpty      ⇒ Left(FailureType.DeviceIdDoesNotMatch)
               case _ if vertex.value2(Properties.DeviceId) != deviceId.value ⇒ Left(FailureType.DeviceIdDoesNotMatch)
-              case _ if !vertex.value2(Properties.DeviceActivated)           ⇒ Left(FailureType.DeviceNotActivated)
+              case _ if !vertex.value2(Properties.DeviceActivated)           ⇒ Left(FailureType.DeviceNotActivated)*/
               case _ ⇒
                 if (status == Status(Registered)) {
                   vertex.setProperty(Properties.Name, name.value)
