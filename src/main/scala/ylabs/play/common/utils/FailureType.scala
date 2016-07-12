@@ -7,4 +7,5 @@ object FailureType {
   case object DeviceCodeDoesNotMatch extends FailureType
   case object DeviceCodeMissing extends FailureType
   case object DeviceNotActivated extends FailureType
+  case object FirebaseError extends FailureType
 }

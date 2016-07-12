@@ -16,15 +16,17 @@ class FirebaseModule extends AbstractModule {
 @Singleton
 class Firebase @Inject() (conf: Configuration) {
 
-  val url = conf.config.getString("firebase.url")
-  val credentials = getClass.getResourceAsStream("/firebaseCredentials.json")
+  if (FirebaseApp.getApps.size == 0) {
+    val url = conf.config.getString("firebase.url")
+    val credentials = getClass.getResourceAsStream("/firebaseCredentials.json")
 
-  val fbOptions = new FirebaseOptions.Builder()
-    .setDatabaseUrl(url)
-    .setServiceAccount(credentials)
-    .build()
+    val fbOptions = new FirebaseOptions.Builder()
+      .setDatabaseUrl(url)
+      .setServiceAccount(credentials)
+      .build()
 
-  FirebaseApp.initializeApp(fbOptions)
+    FirebaseApp.initializeApp(fbOptions)
+  }
 
   val db = FirebaseDatabase.getInstance()
 }

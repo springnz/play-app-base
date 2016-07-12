@@ -3,33 +3,28 @@ package ylabs.play.common.firebase.rest
 import javax.inject.{Inject, Singleton}
 
 import play.api.libs.json.Json
-import play.api.libs.ws.WSClient
+import ylabs.play.common.firebase.FirebaseRest
 import ylabs.play.common.models.Helpers.Id
 import ylabs.play.common.models.User._
-import ylabs.play.common.utils.Configuration
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
-class UserFirebaseRest @Inject() (ws: WSClient, conf: Configuration) {
-
-  lazy val fbUrl = conf.config.getString("firebase.url")
+class UserFirebaseRest @Inject() (fb: FirebaseRest) {
 
   def create(phone: Phone, name: Name, status: Status): Future[Id[User]] = {
-    val fbData = UserFirebaseCreate(phone, name, status)
 
-    ws.url(s"$fbUrl/users.json")
-      .post(Json.toJson(fbData))
-      .map {
-        resp => (resp.json \ "name").as[Id[User]]
-      }
+    val path = "/users.json"
+    val data = UserFirebaseCreate(phone, name, status)
+
+    fb.create[User](path, Json.toJson(data))
   }
 
   def update(userId: Id[User], name: Option[Name] = None, status: Option[Status] = None) = {
-    val fbData = UserFirebaseUpdate(name, status)
 
-    ws.url(s"$fbUrl/users/${userId.value}.json")
-      .patch(Json.toJson(fbData))
+    val path = s"/users/${userId.value}.json"
+    val data = UserFirebaseUpdate(name, status)
+
+    fb.update(path, Json.toJson(data))
   }
 }
